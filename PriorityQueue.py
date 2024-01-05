@@ -29,7 +29,6 @@ class PriorityPoint():
     """
     Class wrapping a point to compute its priority.
     """
-
     def __init__(self, mmsi, point):
         self.mmsi = mmsi
         self.point = point   # TGeomInst
@@ -53,7 +52,7 @@ class PriorityQueue():
         self.trips = {}   # could be lists sorted by time !
         self.precheck = precheck
         self.lasts_not_added = {}
-        print("Priority Queue init")
+        # print("Priority Queue init")
     
 
     def add(self, node: PriorityPoint):
@@ -84,15 +83,19 @@ class PriorityQueue():
                 self.lasts_not_added.pop(mmsi)
 
             to_add = self.ends[mmsi]
-
             self.ends[mmsi] = node
-            
             self.insert_node(to_add)
             
             while len(self.priority_list) + len(self.ends) > self.mx:
                 # print(len(self.priority_list), len(self.starts), self.mx) 
-                to_remove = self.priority_list.pop(0)
-                self.remove_and_update_priority(to_remove)
+                if len(self.priority_list) > 0:
+                    to_remove = self.priority_list.pop(0)
+                    self.remove_and_update_priority(to_remove)
+                else:
+                    # remove a random end point
+                    print("random removal")
+                    to_del = list(self.ends.keys())[0]
+                    self.ends.pop(to_del)
         return
 
     def insert_node(self, to_add):
@@ -154,7 +157,7 @@ class PriorityQueue():
         if index_remove < len(trip):  
             neighboors.append(trip[index_remove])
         else:
-            # in this case we the next node is not yet in the priority list but
+            # in this case the next node is not yet in the priority list but
             # in the lasts
             self.ends[mmsi].priority += to_remove.priority
 
@@ -166,18 +169,10 @@ class PriorityQueue():
         return
         
     
-
-    def print_trajectory(self, mmsi: int):
-        priorities = [x.priority for x in self.trips[mmsi]]
-        priorities_str = [f"{x:.2f}" for x in priorities]
-        string = ",".join(priorities_str) + " :: " + f"{self.buffered_priorities[mmsi]:.2f}"
-        print("\t", string)
-
-
     def get_trajectories(self, end=False) -> dict:
         trajectories = {}
         for mmsi in self.starts:
-            if mmsi not in self.ends and not end:
+            if not end and mmsi not in self.ends:
                 continue
             ppoints = [self.starts[mmsi]] + self.trips.get(mmsi, []) 
             if mmsi in self.ends and end:
@@ -316,54 +311,11 @@ class PriorityQueueSTTraceOpt(PriorityQueue):
         node.priority = new_dist - old_dist
 
 
-    def remove_and_update_priority_old(self, to_remove: PriorityPoint):
-        """Remove a node we recompute the priority of the neighboors.
-        To do this we need to remove the neighboors, recompute their priorities then add again.
-        
-        STTraceOpt way to do: the recompute priority is based on the actuall difference of error 
-        with respect to the initial trajectory.
-        """
-        mmsi = to_remove.mmsi
-
-        # find neighboor[s] of the removed elements
-        trip = self.trips[mmsi]
-        index_removed = trip.index(to_remove)
-        trip.pop(index_removed)
-
-        neighboors = []
-
-        if index_removed > 0:
-            previous = trip[index_removed-1]      # to recompute its priority we need nodes even before
-                                                         # and after
-            # before_previous, after_previous = self.find_neighboors(previous)
-            # before_previous = trip[index_remove-2] if index_remove -2 > 0 else self.starts[mmsi]
-            # after_previous = trip[index_remove+1] if len(trip) > index_remove +1 else self.ends[mmsi]
-            # previous.priority = self.compute_priority(before_previous, previous, after_previous)
-            # neighboors.append((before_previous, previous, after_previous))
-            neighboors.append(previous)
-
-        # same for the neighboor after
-        if len(trip) > index_removed:
-            following = trip[index_removed]  # not plus one since node already removed!
-            # before_following, after_following = self.find_neighboors(following)
-            # before_following = trip[index_remove-1] if index_remove -1 > 0 else self.starts[mmsi]
-            # after_following = trip[index_remove+2] if len(trip) > index_remove +2 else self.ends[mmsi]
-
-            # following.priority = self.compute_priority(before_following, following, after_following)
-            # neighboors.append((before_following, following, after_following))
-            neighboors.append(following)
-
-        for neighboor in neighboors:
-            self.priority_list.remove(neighboor)
-            neighboor.priority = - self.compute_priority(neighboor)
-            self.priority_list.add(neighboor)
-
-
 
 class PriorityQueueSTTraceOptReg(PriorityQueueSTTraceOpt):
-    def __init__(self, mx, precheck=False, freq=10):
+    def __init__(self, mx, freq, precheck=False):
         super().__init__(mx, precheck=precheck)
-        self.delta = timedelta(seconds=freq)
+        self.delta = timedelta(**freq)
 
 
     def compute_priority(self, node):
@@ -395,12 +347,16 @@ class PriorityQueueSTTraceOptReg(PriorityQueueSTTraceOpt):
         if time >= end:
             return 0
 
+
+        correct_trip = TGeomPointSeq.from_instants([x.point for x in self.init_trajectories[mmsi]])
+        """
         try:
              correct_trip = TGeomPointSeq.from_instants([x.point for x in self.init_trajectories[mmsi]])
         except:
              print(time, end)
              node.priority = 0
              return 
+        """
         while time < end:
             correct_point = correct_trip.value_at_timestamp(time)
             new_error += distance_point_line_time(correct_point, time, new_curve)

@@ -20,12 +20,14 @@ from datetime import datetime, timedelta
 import distinctipy
 import haversine
 
+import numpy as np
+
 import types
 
 import warnings
 warnings.filterwarnings('ignore')
 
-import BandwidthConstraintCompressor as BWCC
+# import BandwidthConstraintCompressor as BWCC
 
 
 import warnings
@@ -49,71 +51,14 @@ def convert_points_trips(points):
 
 
 def convert_trajectory_points(trip_id, trajectory, sort=True):
-    """Convert a single trajectory into a dataframe of points."""
+    """Convert a single trajectory into a dataframe of points.
+
+    Not adapted if there is the SOG, COG or other information
+    """
     instants = trajectory.instants()
 
     df = pd.DataFrame.from_records(((trip_id, inst) for inst in instants), columns=["id", "point"])
     return df
-
-
-def convert_trips_points(trips, sort=True):
-    """
-    Dissagregate a dataframe with TGeomSeq to TGeomInst
-    """
-    point_generator = ((trip_id, instant) for trip_id, row in trips.iterrows() for instant in row.trajectory.instants())
-
-    points = pd.DataFrame.from_records(point_generator, columns = ["id", "point"])
-    if sort:
-        # print(points.head())
-        points = points.sort_values(by="point") # , key=lambda x: x.str.lower())
-    return points
-
-
-
-# Plotting
-
-def plot_trips(sequences, colors=None, labels=[]):
-    """
-
-    """
-    fig, axes = plt.subplots()
-
-    sequences = [sequences] if type(sequences) != list else sequences
-        
-
-    for i, s in enumerate(sequences):
-        if type(colors) == list:
-            s.plot(color=colors[i])
-        elif type(colors) ==  types.GeneratorType:
-            s.plot(color=next(colors))
-        else:
-            s.plot()
-
-    # lab = labels[i] if i < len(labels) else None
-    if len(labels) > 0:
-        if len(colors) > 0:
-            repetitions = len(colors)//len(labels)
-            legend_elements = [Line2D([0], [0], color=colors[i*repetitions], lw=4, label=labels[i]) for i in range(len(labels))]
-
-        plt.gca().legend(handles=legend_elements, loc='best')
-    
-    plt.show()
-
-
-def plot_trips_df(trips, algorithms):
-    trajectories = []
-    
-    N = len(algorithms)
-    colors = distinctipy.get_colors(N)
-    
-    color_gen = []
-    
-    for c, algo in zip(colors, algorithms):
-        trajectories.extend(trips[algo])
-        color_gen.extend([c for i in range(len(trips[algo]))])
-
-    plot_trips(trajectories, colors=color_gen, labels=algorithms)
-
 
 
 def extract_wkt_from_traj(traj):
@@ -125,72 +70,6 @@ def extract_wkt_from_traj(traj):
     res = res[:-1] + ']'
     return res
 
-
-def analyse_points(points):
-    """Perfoms checks on the points:
-
-        - no two point at the same time in the same trajectory.
-    """
-    mmsis = set(points.mmsi)
-
-    for mmsi in mmsis:
-        points_mmsi = points[points.mmsi == mmsi].point.tolist()
-
-        print(mmsi, len(points_mmsi))
-        error = 0
-        for i, pt in enumerate(points_mmsi[:-1]):
-            if points_mmsi[i+1].timestamp() == pt.timestamp():
-                # print("error", pt, points_mmsi[i+1])
-                error += 1
-        if error > 0:
-            print("errors:", error)
-        
-
-
-
-##########################################################################
-######                Other Compression Techniques                 #######
-##########################################################################
-def compress_with_pymeos(trips, tolerence=0.001, synchronized=True):
-    trips = trips.copy()
-    trips['trajectory'] = trips['trajectory'].apply(lambda tr: tr.simplify_douglas_peucker(tolerence, synchronized=synchronized))
-    return trips
-
-
-def compress_trips_squish(trips, ratio=29, delta=timedelta(hours=24)):
-    res = {}
-    for mmsi, row in trips.iterrows():
-        trajectory = row.trajectory
-        nb_points = max(len(trajectory.instants())//ratio, 3)
-        points = convert_trajectory_points(mmsi, trajectory)
-        bwcc = BWCC.BandwidthConstraintCompressor(nb_points=nb_points, instants=points, trips=row)
-        bwcc.window_size = delta
-        bwcc.compress(strategy="SQUISH")
-        res_mmsi = bwcc.trips
-        
-        for mmsi, row in res_mmsi.iterrows():
-            res[mmsi] = row.trajectory
-        
-        #plot_results(trips.loc[mmsi], res)
-    
-    results = pd.DataFrame.from_records(((mmsi, trajectory) for mmsi, trajectory in res.items()), 
-                                        columns=["id", "trajectory"], index="id")
-    return results
-
-
-def compress_trips_STTrace(trips, instants, npoints, delta=timedelta(hours=24)):
-    bwcc = BWCC.BandwidthConstraintCompressor(nb_points=npoints, instants=instants, trips=trips, window_size=delta)
-    bwcc.compress(strategy="STTrace")
-    return bwcc.trips
-
-
-
-
-def compress_mpd_trips(mpd_trips, tolerence):
-    """Compress trips in the mpd format using mpd using top down time ratio algorithm."""
-    generalizing_fct = lambda trip: mpd.TopDownTimeRatioGeneralizer(trip.trajectory).generalize(tolerance=tolerence)
-    mpd_trips['trajectory'] = mpd_trips.apply(generalizing_fct, axis=1)
-    return mpd_trips
 
 def convert_mpd_PyMeos(mpd_trips):
     trips =  mpd_trips.copy()
@@ -207,19 +86,117 @@ def convert_PyMeos_mpd(trips):
     return mpd_trips
 
 
+##########################################################################
+######                Other Compression Techniques                 #######
+##########################################################################
+def compress_pymeos_douglas_peucker(trips, tolerence=0.001, synchronized=True):
+    trips = trips.copy()
+    trips['trajectory'] = trips['trajectory'].apply(lambda tr: tr.simplify_douglas_peucker(tolerence, synchronized=synchronized))
+    return trips
+
+
+
+
+
+
+def compress_mpd_synchronized_DP(mpd_trips, tolerence):
+    """Compress trips in the mpd format using mpd using top down time ratio algorithm."""
+    generalizing_fct = lambda trip: mpd.TopDownTimeRatioGeneralizer(trip.trajectory).generalize(tolerance=tolerence)
+    mpd_trips['trajectory'] = mpd_trips.apply(generalizing_fct, axis=1)
+    return mpd_trips
+
+
 def compress_trips_top_down_time_ratio(trips, tolerence=100):
+    """Should be adapted to use Pymeos instead."""
     mpd_trips = convert_PyMeos_mpd(trips)
-    mpd_compressed = compress_mpd_trips(mpd_trips, tolerence=tolerence)
+    mpd_compressed = compress_mpd_synchronized_DP(mpd_trips, tolerence=tolerence)
     return convert_mpd_PyMeos(mpd_compressed)
 
+##########################################################################
+######                     Computing distances                     #######
+##########################################################################
+
+def get_expected_pos_sog(start, time, nys): 
+    start_time = start.point.timestamp()
+    start_pt = Point(nys(start.point.value().x, start.point.value().y))
+
+    speed = start.sog*1852/3600 # from knots to m/s
+    angle = ((start.cog+90)% 360)*np.pi/180  # angle degree % true north -> angle in radians
+    delta = (time - start_time).seconds 
+
+    expected_pos = Point(start_pt.x + delta*speed*np.cos(float(angle)),
+                         start_pt.y + delta*speed*np.sin(float(angle)))
+
+    return expected_pos 
+
+def get_expected_pos_anteprev(time, prev, anteprev, nys):
+    prev_pt = Point(nys(prev.point.value().x, prev.point.value().y))
+    anteprev_pt = Point(nys(anteprev.point.value().x, anteprev.point.value().y))
+    dt = (prev.point.timestamp() - anteprev.point.timestamp()).total_seconds()
+    vx, vy = (prev_pt.x - anteprev_pt.x)/dt, (prev_pt.y - anteprev_pt.y)/dt
+    new_dt = (time - prev.point.timestamp()).total_seconds()
+    return Point(prev_pt.x + vx*new_dt,  prev_pt.y + vy*new_dt)  
+
+
+
+def compute_SED(A, B, C, nys=None, synchronized=True):
+    if B == C or A == B:
+        return B
+
+    point = B.value()
+
+    line = TGeomPointSeq.from_instants([A, C])
+        
+    if synchronized:
+        synchronized_point = line.value_at_timestamp(B.timestamp())
+        distance = haversine.haversine((point.y, point.x), (synchronized_point.y, synchronized_point.x))*1000
+    else:
+        # nys=Proj('EPSG:25832')
+        point_proj = nys(point.x, point.y)
+        line_proj = LineString([nys(p.value().x, p.value().y) for p in line.instants()])
+        distance = Point(point_proj).distance(line_proj)
+    return distance
+
+
+def compute_distance(A, B, crs):
+    """Computes the distance between two points in meters."""
+    nys = Proj(crs)
+    projA = Point(nys(A.x, A.y))
+    projB = Point(nys(B.x, B.y))
+    return projA.distance(projB)
 
 ##########################################################################
 ######                Assessing Compression Techniques             #######
 ##########################################################################
 
-def assess_single_trajectory(compressed, original):
+def assess_single_trajectory(compressed, original, delta, crs='EPSG:25832'):
+    """The score will be the average distance of at regular interval of original trip to the compressed trajectory."""
+    score = 0
+    nmbr_instants = 0
+    compressed_start = compressed.start_instant().timestamp()
+    compressed_end = compressed.end_instant().timestamp()
+    mx_distance = 0
+
+    time = compressed_start + delta
+
+    while time < compressed_end:
+        point = original.value_at_timestamp(time)
+        
+        point_compressed = compressed.value_at_timestamp(time)
+        distance = haversine.haversine((point.y, point.x), (point_compressed.y, point_compressed.x))*1000
+        # distance = compute_distance(point, point_compressed, crs)
+
+        if distance > mx_distance:
+            mx_distance = distance
+        score += distance
+        nmbr_instants += 1
+        time += delta
+
+    return score, nmbr_instants, mx_distance
+
+
+def assess_single_trajectory_instants(compressed, original):
     """The score will be the average distance of each point in the original trip to the compressed trajectory."""
-    
     score = 0
     nmbr_instants = 0
     compressed_start = compressed.start_instant().timestamp()
@@ -249,24 +226,8 @@ def assess_single_trajectory(compressed, original):
         
     return score, nmbr_instants, mx_distance
 
-
-# def assess_all_trajectories(compressed, originals):
-#     trip_ids = originals.index.values.tolist()
-#     if len(trip_ids) != len(set(trip_ids)):
-#         print("problem with duplicates trip_ids in compresses")
-#         
-#     total_score = 0
-#     total_points
-#     for trip_id in trip_ids:
-#         score, points = assess_single_trajectory(compressed=compressed.loc[trip_id].trajectory,
-#                                                  original=originals.loc[trip_id].trajectory)
-#         
-#         total_score += score
-#         total_points += points
-#         
-#     return total_score/total_points
         
-def assess_algorithms(trips, algorithms, original_column):
+def assess_algorithms(trips, algorithms, original_column, precision):
     trip_ids = trips.index.values.tolist()
     
     scores = {algorithm : 0 for algorithm in algorithms}
@@ -274,10 +235,14 @@ def assess_algorithms(trips, algorithms, original_column):
     mx_distances = {algorithm : [] for algorithm in algorithms}
     
     for algorithm in algorithms:
-        print(algorithm)
-        for trip_id in trip_ids:
+        print()
+        print(algorithm, end=": ")
+        for i, trip_id in enumerate(trip_ids):
+            if i%10 == 0:
+                print(i, end=" ")
             score, points, dist = assess_single_trajectory(original=trips.loc[trip_id][original_column],
-                                                           compressed=trips.loc[trip_id][algorithm])
+                                                           compressed=trips.loc[trip_id][algorithm],
+                                                           delta=precision)
             scores[algorithm] += score
             total_points[algorithm] += points
             mx_distances[algorithm].append(dist)
@@ -287,12 +252,6 @@ def assess_algorithms(trips, algorithms, original_column):
         scores[algorithm] = s/total_points[algorithm]
 
     return scores, mx_distances
-
-
-def compile_results(scores, distances):
-    res = pd.DataFrame.from_records(scores)
-
-    
 
 
 def compile_trips(results, original_trips):

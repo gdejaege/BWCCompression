@@ -2,6 +2,11 @@
 *.sql
 *.ipynb
 *.swp
+# other folders
+res/*
+src/*
+tests/*
+old/*
 
 
 # Byte-compiled / optimized / DLL files
