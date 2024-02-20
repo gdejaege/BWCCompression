@@ -1,7 +1,7 @@
 from pymeos.db.psycopg2 import MobilityDB
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-import psycopg2
+# import psycopg2
 
 import pandas as pd
 
@@ -119,7 +119,7 @@ class DBHandler():
         # print("saved")
 
 
-    def load_table(self, table, columns=["id", "point"], df_index=None, ntrips=None):
+    def load_table(self, table, columns: list[str] =["id", "point"], df_index=None, ntrips=None):
         """Loads table containing points/trips into a dataframe.
         Exmples for trips 20 trips:
         trips = dbhandler.load_table(table="AIS_cleaned", columns=["mmsi", "trajectory"],
