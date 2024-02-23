@@ -1,7 +1,7 @@
 from pymeos.db.psycopg2 import MobilityDB
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-# import psycopg2
+import psycopg2
 
 import pandas as pd
 

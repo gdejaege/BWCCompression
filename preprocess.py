@@ -6,7 +6,8 @@ from configobj import ConfigObj
 from pymeos.db.psycopg2 import MobilityDB
 from pymeos import *
 
-import DBHandler 
+# import DBHandler
+import DBHandler_csv as DBHandler 
 from utility import *
 
 import geopandas as gpd
@@ -16,6 +17,12 @@ import movingpandas as mpd
 import warnings
 warnings.filterwarnings('ignore')
 # mpd.show_versions()
+
+def set_timestame(row):
+    time_change = []
+
+    ts_str = row['Timestamp']
+
 
 
 def load_csv_to_df():
@@ -28,7 +35,8 @@ def load_csv_to_df():
     if CONFIG["dataset"] == "birds":
         print("here")
         raw['Timestamp'] = raw.progress_apply(lambda row: datetime.strptime(row['Timestamp']+"+02:00", "%Y-%m-%d %H:%M:%S.%f%z"),
-                                            axis=1)
+        # raw['Timestamp'] = raw.progress_apply(lambda row: datetime.strptime(row['Timestamp'], "%Y-%m-%d %H:%M:%S.%f"),
+                                              axis=1)
     raw = raw.dropna()
     return raw
 
@@ -40,6 +48,7 @@ def construct_instants(raw):
                                                              timestamp=row['Timestamp'], srid=CONFIG['srid']),
                                     axis=1)
     df.drop(['Latitude', 'Longitude', 'Timestamp'], axis=1, inplace=True)
+    # df.set_index('point', inplace=True)
     return df
 
 def filter_points_period(points):
@@ -72,13 +81,21 @@ def compute_trips(ais):
 # Clean with moving pandas 
 def clean_trips_with_mpd(trip, vmax):
     traj = trip.trajectory.to_dataframe()
-    # traj.index = pd.to_datetime(traj.index, utc=True) # needs utc for some unkown reason of pandas?
+    if CONFIG["dataset"] == "birds":
+        print(traj.head())
+        print(type(traj.index))
+        traj.index = pd.to_datetime(traj.index, utc=True)
+        print(type(traj.index))
+        # traj.index = traj.index.map(lambda time: datetime.strptime(time, "%Y-%m-%d %H:%M:%S.%f%z"))
+        # traj.set_index("time")
+
     mpd_traj = mpd.Trajectory(traj, 1)
     mpd_traj.add_speed(overwrite=True)
     
     cleaned = mpd.OutlierCleaner(mpd_traj).clean(v_max=vmax)    # what does alpha do ?
 
     wkt = "SRID=4326;" + extract_wkt_from_traj(cleaned)
+    print(wkt)
     return TGeomPointSeq(string=wkt, normalize=False)
 
 
@@ -94,6 +111,8 @@ def clean_all_trips(init_trips, cleaning_strategy=clean_trips_with_mpd):
 def raw_points_from_clean_trips(trips_cleaned, raw_points):
     id_ts = {ind: [instant.timestamp() for instant in row.trajectory.instants()] for ind, row in trips_cleaned.iterrows()}
     points = [point for _,point in raw_points.iterrows() if point.point.timestamp() in id_ts.get(point.id, [])]
+    if CONFIG["dataset"] == "birds":
+        return pd.DataFrame(points, columns=["id", "point"]) # raw_points[poins_filtered_index]
     return pd.DataFrame(points, columns=["id", "point", "sog", "cog"]) # raw_points[poins_filtered_index]
 
 
@@ -110,9 +129,10 @@ def preprocess(load=False):
         print(points.head())
         if "outliers" in CONFIG:
             points = filter_outliers(points, [int(x) for x in CONFIG["outliers"]])
-        if 'filter_periond' in CONFIG and CONFIG.as_bool('filter_period'):
+        if 'filter_period' in CONFIG and CONFIG.as_bool('filter_period'):
             points = filter_points_period(points)
         if CONFIG.as_bool('filter'):
+            print("filter")
             points = filter_points_tbox(points)
         trips = compute_trips(points)
 
@@ -129,8 +149,12 @@ def preprocess(load=False):
         dbhandler.close()
 
     print(len(points))
-    trips_clean = clean_all_trips(trips)
-    points_clean = raw_points_from_clean_trips(trips_clean, points)
+    if CONFIG["dataset"] == "birds":  # I think this is not needed
+        trips_clean = trips
+        points_clean = points
+    else:
+        trips_clean = clean_all_trips(trips)
+        points_clean = raw_points_from_clean_trips(trips_clean, points)
     DBHandler.save(points_clean, trips_clean, CONFIG["db"], state="cleaned", 
             points_columns=CONFIG["points_columns"], 
             points_columns_types=CONFIG["points_columns_types"], idtype=CONFIG["idtype"])
@@ -139,14 +163,14 @@ def preprocess(load=False):
     
 
 if __name__ == "__main__":
-    test = "birds_3months"
-    test = "copenhague2"
+    tests= ("birds", )
 
     pymeos_initialize()
-    CONFIG = ConfigObj("test_config.ini")
-    CONFIG = CONFIG[test]
+    for test in tests:
+        CONFIG = ConfigObj("tests_10_percent.ini")
+        CONFIG = CONFIG[test]
 
-    preprocess(load=False)
+        preprocess(load=False)
 
 
 

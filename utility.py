@@ -119,6 +119,7 @@ def get_expected_pos_sog(start, time, nys):
     start_pt = Point(nys(start.point.value().x, start.point.value().y))
 
     speed = start.sog * 1852 / 3600  # from knots to m/s
+    """
     angle = (
         ((start.cog + 90) % 360) * np.pi / 180
     )  # angle degree % true north -> angle in radians
@@ -127,6 +128,16 @@ def get_expected_pos_sog(start, time, nys):
     expected_pos = Point(
         start_pt.x + delta * speed * np.cos(float(angle)),
         start_pt.y + delta * speed * np.sin(float(angle)),
+    )
+    """
+    angle = (
+        ((start.cog) % 360) * np.pi / 180
+    )  # angle degree % true north -> angle in radians
+    delta = (time - start_time).seconds
+
+    expected_pos = Point(
+        start_pt.x + delta * speed * np.sin(float(angle)),
+        start_pt.y + delta * speed * np.cos(float(angle)),
     )
 
     return expected_pos

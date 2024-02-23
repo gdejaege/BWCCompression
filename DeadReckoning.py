@@ -40,11 +40,11 @@ class DeadReckoning():
         previous_time = previous.point.timestamp()
 
         speed = previous.sog*1852/3600 # from knots to m/s
-        angle = ((previous.cog+90)% 360)*np.pi/180  # angle degree % true north -> angle in radians
+        angle = (previous.cog% 360)*np.pi/180  # angle degree % true north -> angle in radians
         delta = (time - previous_time).seconds 
 
-        expected_pos = Point(previous_pt.x + delta*speed*np.cos(float(angle)),
-                             previous_pt.y + delta*speed*np.sin(float(angle)))
+        expected_pos = Point(previous_pt.x + delta*speed*np.sin(float(angle)),
+                             previous_pt.y + delta*speed*np.cos(float(angle)))
 
         return expected_pos 
 
