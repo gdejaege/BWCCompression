@@ -21,7 +21,8 @@ class BWC_STTrace_Imp():
     def __init__(self, points, window_lenght, limit, nys, eval_delta, init_trips):
         self.instants = points # dataframe of points (can be with SOG, COG)
         self.window = window_lenght
-        self.limit = limit
+        self.limits = limit[:]
+        self.limit = self.limits.pop()
         self.nys = nys
         self.trips = {}  # trips # the points kept in the trips before the window
         self.init_trips = init_trips
@@ -47,6 +48,7 @@ class BWC_STTrace_Imp():
 
 
     def next_window(self):
+        self.limit=self.limits.pop()
         added = 0
         for trip in self.window_trips:
             self.trips.setdefault(trip, []).extend(self.window_trips[trip])

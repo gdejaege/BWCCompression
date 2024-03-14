@@ -7,6 +7,8 @@ from pymeos import *
 
 from pyproj import Proj
 
+import random
+
 import BWC_SQUISH
 import BWC_STTrace
 import BWC_STTrace_Imp
@@ -68,12 +70,18 @@ def compress_classic(points, trips, algos, results={}):
 
 def compress_bwc(points, trips, algos, results={}):
     nys = Proj(CONFIG_DATA["proj"], preserve_units=True)
+    list_size = 100000  # You can adjust this according to your desired list size
+
+    l = CONFIG.as_int("NPOINTS")
+    # Generate a list of random integers between 10 and 30
+    limit = [random.randint(l//2, int(l*1.5)) for _ in range(list_size)]
+
     if "BWC_DR" in algos:
         print("bwc DR start")
         bwc_dr = BWC_DR.BWC_DR(
             points,
             window_lenght=CONFIG["WINDOW_LENGTH"],
-            limit=CONFIG.as_int("NPOINTS"),
+            limit=limit,
             nys=nys,
         )
         # init_trips=trips,
@@ -88,7 +96,7 @@ def compress_bwc(points, trips, algos, results={}):
         bwc_squish = BWC_SQUISH.BWC_SQUISH(
             points,
             window_lenght=CONFIG["WINDOW_LENGTH"],
-            limit=CONFIG.as_int("NPOINTS"),
+            limit=limit,
             nys=nys,
         )
         bwc_squish.compress()
@@ -100,7 +108,7 @@ def compress_bwc(points, trips, algos, results={}):
         bwc_sttrace_imp = BWC_STTrace_Imp.BWC_STTrace_Imp(
             points,
             window_lenght=CONFIG["WINDOW_LENGTH"],
-            limit=CONFIG.as_int("NPOINTS"),
+            limit=limit,
             nys=nys,
             init_trips=trips,
             eval_delta=CONFIG["OPTREG_FREQ"],
@@ -114,7 +122,7 @@ def compress_bwc(points, trips, algos, results={}):
         bwc_sttrace = BWC_STTrace.BWC_STTrace(
             points,
             window_lenght=CONFIG["WINDOW_LENGTH"],
-            limit=CONFIG.as_int("NPOINTS"),
+            limit=limit,
             nys=nys,
         )
         bwc_sttrace.compress()
@@ -229,13 +237,13 @@ if __name__ == "__main__":
 
     pymeos_initialize()
 
-    tests = [ # "copenhague_15min", "copenhague_2h", "copenhague_60min", "copenhague_5min", "copenhague_1min", "copenhague_30sec",
-             "birds_3months_1h",
-             "birds_3months_31d",
-             "birds_3months_7d",
-             "birds_3months_1d",
-             "birds_3months_6h"
-    ]
+    tests = ["copenhague_30sec", "copenhague_2h", "copenhague_60min", "copenhague_15min", "copenhague_5min", "copenhague_1min"]
+             # "birds_3months_1h",
+             # "birds_3months_31d",
+             # "birds_3months_7d",
+             # "birds_3months_1d",
+             # "birds_3months_6h"
+    # ]
     # tests = ["copenhague_15min", "birds_3months_1d"]
 
     algorithms = [
@@ -245,16 +253,14 @@ if __name__ == "__main__":
         "Classical_STTrace",
         "BWC_Squish",
         "BWC_STTrace",
-        # "BWC_STTrace_Imp",
+        "BWC_STTrace_Imp",
         "BWC_DR",
     ]
 
     # CONFIG = ConfigObj("tests_10_percent.ini")
 
     algorithms = algorithms[4:]
-    algorithms = ["DR"]
-        # "BWC_DR"]
-    tests = ["copenhague_15min"]
+    # tests = ["copenhague_15min"]
 
     # tests = tests[:]
 

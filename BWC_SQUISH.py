@@ -17,7 +17,8 @@ class BWC_SQUISH():
     def __init__(self, points, window_lenght, limit, nys):
         self.instants = points # dataframe of points (can be with SOG, COG)
         self.window = window_lenght
-        self.limit = limit
+        self.limits = limit[:]
+        self.limit = self.limits.pop()
         self.nys = nys
         self.trips = {}  # trips # the points kept in the trips before the window
         # window related attributes
@@ -44,6 +45,7 @@ class BWC_SQUISH():
 
 
     def next_window(self):
+        self.limit=self.limits.pop()
         for trip in self.window_trips:
             self.trips.setdefault(trip, []).extend(self.window_trips[trip])
             # added += len(self.window_trips[trip])

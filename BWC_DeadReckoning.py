@@ -1,11 +1,7 @@
 from sortedcontainers import SortedList
-
 from shapely.geometry import Point
-
 from pymeos.main.tpoint import TGeomPointSeq
-
 import pandas as pd
-
 import utility as u
 
 
@@ -27,7 +23,8 @@ class BWC_DR:
     def __init__(self, points, window_lenght, limit, nys):
         self.instants = points  # dataframe of points (can be with SOG, COG)
         self.window = window_lenght
-        self.limit = limit
+        self.limits = limit[:]
+        self.limit = self.limits.pop()
         self.nys = nys
         # the points kept in the trips before the window
         self.trips: dict[int, list[PriorityPoint]] = {}
@@ -36,6 +33,7 @@ class BWC_DR:
         self.window_trips = {}  # could be lists sorted by time !
 
     def compress(self):
+        """Starts the compression of all points."""
         start = self.instants.iloc[0].point.timestamp()
         window_end = start + self.window
 
@@ -46,11 +44,11 @@ class BWC_DR:
                 self.next_window()
             self.add_point(PriorityPoint(row))
 
-        # keep points of last window
         self.next_window()
         self.finalize_trips()
 
     def next_window(self):
+        self.limit=self.limits.pop()
         added = 0
         for trip in self.window_trips:
             self.trips.setdefault(trip, []).extend(self.window_trips[trip])
@@ -74,7 +72,6 @@ class BWC_DR:
             self.remove_point()
 
     def update_priority_last_point(self, point):
-        # trip = self.window_trips[point.tid]
         self.priority_list.remove(point)
         point.priority = self.evaluate_point(point)
         self.priority_list.add(point)

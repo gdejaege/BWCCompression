@@ -1,3 +1,4 @@
+
 # SQL and notebook files
 *.sql
 *.ipynb
@@ -5,6 +6,7 @@
 # other folders
 res/*
 src/*
+data/*
 tests/*
 old/*
 
