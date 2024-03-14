@@ -16,7 +16,6 @@ import movingpandas as mpd
 
 import warnings
 warnings.filterwarnings('ignore')
-# mpd.show_versions()
 
 def set_timestame(row):
     time_change = []
@@ -35,7 +34,6 @@ def load_csv_to_df():
     if CONFIG["dataset"] == "birds":
         print("here")
         raw['Timestamp'] = raw.progress_apply(lambda row: datetime.strptime(row['Timestamp']+"+02:00", "%Y-%m-%d %H:%M:%S.%f%z"),
-        # raw['Timestamp'] = raw.progress_apply(lambda row: datetime.strptime(row['Timestamp'], "%Y-%m-%d %H:%M:%S.%f"),
                                               axis=1)
     raw = raw.dropna()
     return raw
@@ -48,7 +46,6 @@ def construct_instants(raw):
                                                              timestamp=row['Timestamp'], srid=CONFIG['srid']),
                                     axis=1)
     df.drop(['Latitude', 'Longitude', 'Timestamp'], axis=1, inplace=True)
-    # df.set_index('point', inplace=True)
     return df
 
 def filter_points_period(points):
@@ -86,8 +83,6 @@ def clean_trips_with_mpd(trip, vmax):
         print(type(traj.index))
         traj.index = pd.to_datetime(traj.index, utc=True)
         print(type(traj.index))
-        # traj.index = traj.index.map(lambda time: datetime.strptime(time, "%Y-%m-%d %H:%M:%S.%f%z"))
-        # traj.set_index("time")
 
     mpd_traj = mpd.Trajectory(traj, 1)
     mpd_traj.add_speed(overwrite=True)
@@ -101,8 +96,6 @@ def clean_trips_with_mpd(trip, vmax):
 
 def clean_all_trips(init_trips, cleaning_strategy=clean_trips_with_mpd):
     trips = init_trips.copy()
-    # print(trips.head())
-    # trips_index = init_trips['trajectory'].progress_map(lambda traj: len(traj.instants())>0)
     cleaning_strategy_l = lambda x: cleaning_strategy(x, vmax=CONFIG["clean"].as_int("vmax"))
     trips['trajectory'] = trips.progress_apply(cleaning_strategy_l, axis=1)
     return trips   
@@ -141,7 +134,6 @@ def preprocess(load=False):
                        points_columns_types=CONFIG["points_columns_types"], 
                        idtype=CONFIG["idtype"])
 
-        # trips.set_index("id", inplace=True)
     else:
         dbhandler = DBHandler.DBHandler(db=CONFIG["db"], debug=False)
         trips = dbhandler.load_table(table="trips", columns=["id", "trajectory"], df_index="id")
@@ -163,10 +155,10 @@ def preprocess(load=False):
     
 
 if __name__ == "__main__":
-    tests= ("birds", )
-
+    tests= ("birds", "copenhague2") # one irrealistic trajectory has been removed.
     pymeos_initialize()
     for test in tests:
+        # The preprocess can be done with both 10 or 30% indifferently
         CONFIG = ConfigObj("tests_10_percent.ini")
         CONFIG = CONFIG[test]
 

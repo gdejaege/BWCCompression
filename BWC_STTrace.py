@@ -1,5 +1,4 @@
 from sortedcontainers import SortedList
-
 from utility import *
 
 
@@ -26,6 +25,7 @@ class BWC_STTrace():
 
 
     def compress(self):
+        """Compress all the points (in different time windows)."""
         start = self.instants.iloc[0].point.timestamp()
         window_end = start + self.window
         for i, row in self.instants.iterrows():
@@ -41,6 +41,7 @@ class BWC_STTrace():
 
 
     def next_window(self):
+        """Empty the priorityQueue to the kept points."""
         added = 0
         for trip in self.window_trips:
             self.trips.setdefault(trip, []).extend(self.window_trips[trip])
@@ -52,7 +53,7 @@ class BWC_STTrace():
 
 
     def add_point(self, point):
-
+        """Process the incoming point then remove from queue and update priorities."""
         # 1. check if point is worth it
         if len(self.priority_list) >= self.limit and (not self.interesting(point)):
             return 
@@ -65,8 +66,6 @@ class BWC_STTrace():
         self.priority_list.add(point)
         self.window_trips.setdefault(point.tid, []).append(point)
 
-        # len_extended = len(self.trips.get(point.tid, [])) + len(self.window_trips[point.tid])
-
         if len(self.window_trips[point.tid]) > 1:
             self.update_priority_antelast_point(point.tid)
 
@@ -75,6 +74,7 @@ class BWC_STTrace():
 
 
     def interesting(self, point):
+        """STTrace: dont consider points if leads to removal of current last in trip."""
         # point has not yet been added to the trip
         tid = point.tid
         full_trip = self.trips.get(tid,[]) + self.window_trips.get(tid, []) 
@@ -83,7 +83,7 @@ class BWC_STTrace():
 
 
     def update_priority_antelast_point(self, tid):
-        """For Squish and STTrace."""
+        """Compute the priority (SED) of point before the new last one of trajectory."""
         trip = self.window_trips[tid]
         if tid not in self.trips and len(trip) == 2:
             # the antelast is the first, therefore we keep priority infinite
@@ -97,6 +97,7 @@ class BWC_STTrace():
         
 
     def remove_point(self):
+        """Remove point with least priority and update its neighboors' priorities."""
         to_remove = self.priority_list.pop(0)
         tid = to_remove.tid
 
@@ -120,7 +121,7 @@ class BWC_STTrace():
 
 
     def evaluate_point(self, point):
-        """returns the original SED evaluation."""
+        """Compute the priority (SED) of point before the new last one of trajectory."""
         tid = point.tid
         extended_trip = self.trips.get(tid, [])[-1:] + self.window_trips[tid]
         point_id = extended_trip.index(point)
@@ -135,34 +136,19 @@ class BWC_STTrace():
 
     def finalize_trips(self):
         """Build TGeomPoint sequences from the kept points."""
-        # only to check if order  problem!:
-        for key, points in self.trips.items():
-            i = 0
-            flag = False
-            for i in range(len(points)-1):
-                if points[i].point.timestamp() >= points[i+1].point.timestamp():
-                    flag = True
-            if flag or len(points) == 0:
-                print(key, points)
-                print("Above")
-
         # traj is a list of PriorityPoints
         trips_dico = {key: TGeomPointSeq.from_instants([x.point for x in traj], upper_inc=True) for key, traj in self.trips.items()}
 
-        # 
         self.trips = pd.DataFrame.from_dict(trips_dico, orient='index', columns=["trajectory"])
 
 
 def classical_STTrace(trips, instants, npoints, nys, delta):
-    # bwcc = BWCC.BandwidthConstraintCompressor(nb_points=npoints, instants=instants, trips=trips, window_size=delta)
-    # bwcc.compress(strategy="STTrace")
+    """Same but with 1 time window."""
 
     bwc_sttrace = BWC_STTrace(instants, window_lenght=delta, 
                                           limit=npoints, 
                                           nys=nys)
     bwc_sttrace.compress()
-        
-
     return bwc_sttrace.trips
 
 

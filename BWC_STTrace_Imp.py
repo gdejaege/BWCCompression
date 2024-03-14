@@ -1,8 +1,5 @@
 from sortedcontainers import SortedList
-
 from utility import *
-
-
 from pymeos import *
 from pymeos.main.tpoint import TGeomPointInst, TGeomPointSeq
 import haversine
@@ -32,6 +29,7 @@ class BWC_STTrace_Imp():
 
 
     def compress(self):
+        """Compress all the points (in different time windows)."""
         start = self.instants.iloc[0].point.timestamp()
         window_end = start + self.window
         for i, row in self.instants.iterrows():
@@ -47,6 +45,7 @@ class BWC_STTrace_Imp():
 
 
     def next_window(self):
+        """Process the incoming point then remove from queue and update priorities."""
         added = 0
         for trip in self.window_trips:
             self.trips.setdefault(trip, []).extend(self.window_trips[trip])
@@ -58,6 +57,7 @@ class BWC_STTrace_Imp():
 
 
     def add_point(self, point):
+        """Process the incoming point then remove from queue and update priorities."""
         existing_len = len(self.window_trips.get(point.tid, [])) + len(self.trips.get(point.tid, []))
         if existing_len > 0:
             point.priority = 1e20
@@ -74,7 +74,7 @@ class BWC_STTrace_Imp():
 
 
     def interesting(self, point):
-        # point has not yet been added to the trip
+        """STTrace: dont consider points if leads to removal of current last in trip."""
         tid = point.tid
         full_trip = self.trips.get(tid,[]) + self.window_trips.get(tid, []) 
 
@@ -82,7 +82,7 @@ class BWC_STTrace_Imp():
 
 
     def update_priority_antelast_point(self, tid):
-        """For Squish and STTrace."""
+        """Compute the priority (SED) of point before the new last one of trajectory."""
         trip = self.window_trips[tid]
         if tid not in self.trips and len(trip) == 2:
             # the antelast is the first, therefore we keep priority infinite
@@ -96,6 +96,7 @@ class BWC_STTrace_Imp():
         
 
     def remove_point(self):
+        """Remove point with least priority and update its neighboors' priorities."""
         to_remove = self.priority_list.pop(0)
         tid = to_remove.tid
 
@@ -179,9 +180,6 @@ class BWC_STTrace_Imp():
 
         # 
         self.trips = pd.DataFrame.from_dict(trips_dico, orient='index', columns=["trajectory"])
-
-
-
 
 
 if __name__ == "__main__":

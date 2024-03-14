@@ -76,8 +76,6 @@ def compress_bwc(points, trips, algos, results={}):
             limit=CONFIG.as_int("NPOINTS"),
             nys=nys,
         )
-        # init_trips=trips,
-        # eval_delta=CONFIG["OPTREG_FREQ"])
         bwc_dr.compress()
         bwc_dr.finalize_trips()
         results["BWC_DR"] = bwc_dr.finalized_trips
@@ -132,7 +130,6 @@ def compile_trips(results, original_trips):
     )
 
     for name, trajectory in results.items():
-        # print(name, type(trajectory))
         all_compressed_trajectories = all_compressed_trajectories.join(
             trajectory, how="outer"
         )
@@ -147,9 +144,6 @@ def assess_results(all_compressed_trajectories, algorithms):
     num_points = {}
     for algo in algorithms:
         print(algo)
-        # print(all_compressed_trajectories[algo])
-        # if algo == "BWC_DR":
-        #     print(all_compressed_trajectories[algo])
         if algo in all_compressed_trajectories:
             num_point = sum(
                 [
@@ -175,9 +169,7 @@ def assess_results(all_compressed_trajectories, algorithms):
     return res
 
 
-def compile_results(
-    scores, distances, num_points, algos
-):  # =["BWC_DR", "TDTR", "Classical_STTrace", "Classical_Squish", "DR", "BWC_STTrace", "BWC_STTrace_Imp", "BWC_Squish"]):
+def compile_results(scores, distances, num_points, algos): 
     columns = ["#remaining", "avg_error", "avg_max", "max_max", "med_max"]
     res = defaultdict(list)
     for algo in algos:
@@ -210,11 +202,7 @@ def compress_and_evaluate(algorithms):
     results = compress_classic(points, trips, algorithms)
     results = compress_bwc(points, trips, algorithms, results=results)
 
-    # print(results["BWC_DR"])
-
     all_compressed_trajectories = compile_trips(results, trips)
-
-    # print(all_compressed_trajectories)
 
     res = assess_results(all_compressed_trajectories, algorithms)
 
@@ -229,14 +217,13 @@ if __name__ == "__main__":
 
     pymeos_initialize()
 
-    tests = [ # "copenhague_15min", "copenhague_2h", "copenhague_60min", "copenhague_5min", "copenhague_1min", "copenhague_30sec",
+    tests = [ "copenhague_15min", "copenhague_2h", "copenhague_60min", "copenhague_5min", "copenhague_1min", "copenhague_30sec",
              "birds_3months_1h",
              "birds_3months_31d",
              "birds_3months_7d",
              "birds_3months_1d",
              "birds_3months_6h"
     ]
-    # tests = ["copenhague_15min", "birds_3months_1d"]
 
     algorithms = [
         "TDTR",
@@ -245,18 +232,13 @@ if __name__ == "__main__":
         "Classical_STTrace",
         "BWC_Squish",
         "BWC_STTrace",
-        # "BWC_STTrace_Imp",
+        "BWC_STTrace_Imp",
         "BWC_DR",
     ]
 
-    # CONFIG = ConfigObj("tests_10_percent.ini")
 
+    # it is not necessary to apply classical algorithms on different datasets!
     algorithms = algorithms[4:]
-    algorithms = ["DR"]
-        # "BWC_DR"]
-    tests = ["copenhague_15min"]
-
-    # tests = tests[:]
 
     all_res = pd.DataFrame(index=algorithms)
     for test in tests:
@@ -282,18 +264,3 @@ if __name__ == "__main__":
 
     print(all_res)
     all_res.to_csv("res/all.csv", mode="a")
-
-    # algorithms = algorithms[:4]
-
-    # test = "copenhague_15min"
-    # CONFIG = ConfigObj("tests_10_percent.ini")
-    # CONFIG_CLASSIC = CONFIG[CONFIG[test]["classic"]]
-    # CONFIG_DATA = CONFIG[CONFIG[test]["dataset"]]
-    # CONFIG = CONFIG[test] 
-    # delta = {CONFIG["WINDOW_SIZE_UNIT"]: CONFIG.as_int("WINDOW_SIZE")}
-    # CONFIG["WINDOW_LENGTH"] = timedelta(**delta)
-    # create_histograms(algorithms)
-    # exit()
-
-
-    # algorithms = algorithms[:4]

@@ -23,11 +23,11 @@ class BWC_SQUISH():
         # window related attributes
         self.priority_list = SortedList(key=lambda x: x.priority) # priorities!
         self.window_trips = {}   # could be lists sorted by time !
-        # self.start_priorities = {} # buffered priorities to add to first point
         self.end_priorities = {} # buffered priorities to add to last point
 
 
     def compress(self):
+        """Compress all the points (in different time windows)."""
         start = self.instants.iloc[0].point.timestamp()
         window_end = start + self.window
 
@@ -44,6 +44,7 @@ class BWC_SQUISH():
 
 
     def next_window(self):
+        """Empty the priorityQueue to the kept points."""
         for trip in self.window_trips:
             self.trips.setdefault(trip, []).extend(self.window_trips[trip])
             # added += len(self.window_trips[trip])
@@ -56,6 +57,7 @@ class BWC_SQUISH():
 
 
     def add_point(self, point):
+        """Process the incoming point then remove from queue and update priorities."""
         existing_len = len(self.window_trips.get(point.tid, [])) + len(self.trips.get(point.tid, []))
         if existing_len > 0:
             point.priority = 1e20
@@ -72,7 +74,7 @@ class BWC_SQUISH():
 
 
     def update_priority_antelast_point(self, tid):
-        """For Squish and STTrace."""
+        """Compute the priority (SED) of point before the new last one of trajectory."""
         trip = self.window_trips[tid]
         if tid not in self.trips and len(trip) == 2:
             # the antelast is the first, therefore we keep priority infinite
@@ -82,25 +84,26 @@ class BWC_SQUISH():
         self.priority_list.remove(to_update) 
         to_update.priority = self.evaluate_point(to_update) 
 
-        # if there was buffered priorities at the end or begining, we add it
+        # if there is a buffered priorities at the end, we add it
+        # For instance if we have the trajectory "a b c d" to which e will be added,
+        # if for some reason c was dropped before the addition of e, we add the 
+        # priority of c to d.
         if tid in self.end_priorities:
             to_update.priority += self.end_priorities.pop(tid)
-        # if the point is the first of the window, then we add the buffered priority of previous window
-        # if len(trip) == 2 and tid in self.start_priorities:
-        #     to_update.priority += self.start_priorities.pop(tid)
 
         self.priority_list.add(to_update)
         return
         
 
     def remove_point(self):
+        """Remove point with least priority and update its neighboors' priorities."""
         to_remove = self.priority_list.pop(0)
         tid = to_remove.tid
         trip = self.window_trips[tid]
         to_remove_index = trip.index(to_remove)
         del trip[to_remove_index]
 
-        # update priority of the neighboors
+        # update priority of the neighboors using SQUISH heuristic
         if to_remove_index > 0:
             previous = trip[to_remove_index - 1]
             self.priority_list.remove(previous)
@@ -108,7 +111,7 @@ class BWC_SQUISH():
             self.priority_list.add(previous)
 
         if to_remove_index < len(trip):
-            following = trip[to_remove_index]
+            following = trip[to_remove_index] # since node already removed
             self.priority_list.remove(following)
             following.priority += to_remove.priority
             self.priority_list.add(following)
@@ -129,25 +132,12 @@ class BWC_SQUISH():
             # print("error")
             return float('inf')
         else:
-            return compute_SED(full_trip[point_id-1].point, point.point, full_trip[point_id+1].point, self.nys)
+            return compute_SED(full_trip[point_id-1].point, point.point, 
+                               full_trip[point_id+1].point, self.nys)
         
 
     def finalize_trips(self):
         """Build TGeomPoint sequences from the kept points."""
-        """
-        # only to check if order  problem!:
-        for key, points in self.trips.items():
-            i = 0
-            flag = False
-            for i in range(len(points)-1):
-                if points[i].point.timestamp() >= points[i+1].point.timestamp():
-                    flag = True
-            if flag:
-                print(points)
-                print("Above")
-        """
-
-        # traj is a list of PriorityPoints
         trips_dico = {key: TGeomPointSeq.from_instants([x.point for x in traj], upper_inc=True) for key, traj in self.trips.items()}
 
         # 
@@ -156,6 +146,7 @@ class BWC_SQUISH():
 
 
 def classical_squish(trips, ratio, delta, nys):
+    """Same but with only 1 time window."""
     res = {}
     for mmsi, row in trips.iterrows():
         trajectory = row.trajectory
@@ -177,7 +168,7 @@ def classical_squish(trips, ratio, delta, nys):
 
 
 def assess_bwc_squish(points, window_lenght, limit, nys):
-
+    """For tests only."""
     squish = BWC_SQUISH(points, window_lenght, limit, nys)
 
     squish.compress()

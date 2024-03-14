@@ -115,21 +115,11 @@ def compress_trips_top_down_time_ratio(trips, tolerence=100):
 
 
 def get_expected_pos_sog(start, time, nys):
+    """For AIS DATA. To adapt if other datasources."""
     start_time = start.point.timestamp()
     start_pt = Point(nys(start.point.value().x, start.point.value().y))
 
     speed = start.sog * 1852 / 3600  # from knots to m/s
-    """
-    angle = (
-        ((start.cog + 90) % 360) * np.pi / 180
-    )  # angle degree % true north -> angle in radians
-    delta = (time - start_time).seconds
-
-    expected_pos = Point(
-        start_pt.x + delta * speed * np.cos(float(angle)),
-        start_pt.y + delta * speed * np.sin(float(angle)),
-    )
-    """
     angle = (
         ((start.cog) % 360) * np.pi / 180
     )  # angle degree % true north -> angle in radians

@@ -102,16 +102,6 @@ class DeadReckoning():
                 else:
                     self.lasts[key] = row
 
-                """
-                if distance > self.threshold:
-                    # print(distance)
-                    self.trips[key].append(row)
-                    if key in self.lasts:
-                        self.lasts.pop(key)
-                else:
-                    self.lasts[key] = row
-                """
-
 
     def finalize_trips(self, include_last=True):
         """Build TGeomPoint sequences from the kept points."""

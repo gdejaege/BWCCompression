@@ -7,6 +7,7 @@ res/*
 src/*
 tests/*
 old/*
+data/*
 
 
 # Byte-compiled / optimized / DLL files

@@ -58,15 +58,9 @@ class DBHandler():
         if self.debug:
             print(query)
         else:
-            # print(query)
             self.cursor.execute("DROP TABLE IF EXISTS {}  CASCADE;".format(table))
             self.connection.commit()
-            # print("table dropped")
             self.cursor.execute(query)
-            # for i, t in enumerate(columns_types):
-            #     if t in ('public.tgeompoint', ):
-            #         query = "SELECT setSRID({}, {}) from {}".format(columns[i], srid, table)
-            #         self.cursor.execute(query)
             self.connection.commit()
         return
 

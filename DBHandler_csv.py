@@ -5,6 +5,7 @@ import pandas as pd
 
 
 class DBHandler():
+    """In case of problems with MobilityDB, emulate DB with CSV files."""
 
     def __init__(self, db='mobilitydb', debug=False):
         self.db=db
