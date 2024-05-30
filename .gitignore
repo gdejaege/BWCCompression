@@ -3,9 +3,7 @@
 *.ipynb
 *.swp
 # other folders
-res/*
-src/*
-tests/*
+# res/*
 old/*
 data/*
 
