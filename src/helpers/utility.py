@@ -94,6 +94,8 @@ def get_expected_pos_anteprev(time, prev, anteprev, nys):
 
 
 def compute_SED(A, B, C, nys, synchronized=True):
+    """Return the distance of point B to segment AC."""
+    # I should raise error if out of order 
     if B == C or A == B:
         return B
 

@@ -1,4 +1,5 @@
 from sortedcontainers import SortedList
+from src.bwc.windowed import Windowed
 from src.helpers.utility import PriorityPoint, compute_SED
 from pymeos import TGeomPointSeq
 from pymeos.main.tpoint import TGeomPointInst, TGeomPointSeq
@@ -6,44 +7,12 @@ import haversine
 import pandas as pd
 
 
-class BWC_STTrace_Imp:
+class BWC_STTrace_Imp(Windowed):
     def __init__(self, points, window_lenght, limit, nys, eval_delta, init_trips):
-        self.instants = points  # dataframe of points (can be with SOG, COG)
-        self.window = window_lenght
-        self.limit = limit
-        self.nys = nys
-        self.trips = {}  # trips # the points kept in the trips before the window
-        self.init_trips = init_trips
-        # window related attributes
-        self.priority_list = SortedList(key=lambda x: x.priority)  # priorities!
-        self.window_trips = {}  # could be lists sorted by time !
+        super().__init__(points, window_lenght, limit, nys)
         self.eval_delta = eval_delta
+        self.init_trips = init_trips
 
-    def compress(self):
-        """Compress all the points (in different time windows)."""
-        start = self.instants.iloc[0].point.timestamp()
-        window_end = start + self.window
-        for i, row in self.instants.iterrows():
-            time = row.point.timestamp()
-            if time > window_end:
-                window_end = window_end + self.window
-                self.next_window()
-            self.add_point(PriorityPoint(row))
-
-        # keep points of last window
-        self.next_window()
-        self.finalize_trips()
-
-    def next_window(self):
-        """Process the incoming point then remove from queue and update priorities."""
-        added = 0
-        for trip in self.window_trips:
-            self.trips.setdefault(trip, []).extend(self.window_trips[trip])
-            added += len(self.window_trips[trip])
-
-        self.priority_list = SortedList(key=lambda x: x.priority)  # priorities!
-        self.window_trips = {}  # could be lists sorted by time !
-        # the priorities buffered at the end are valid for next window start
 
     def add_point(self, point):
         """Process the incoming point then remove from queue and update priorities."""
@@ -157,16 +126,6 @@ class BWC_STTrace_Imp:
 
     def finalize_trips(self):
         """Build TGeomPoint sequences from the kept points."""
-        # check for errors
-        for key, points in self.trips.items():
-            i = 0
-            flag = False
-            for i in range(len(points) - 1):
-                if points[i].point.timestamp() >= points[i + 1].point.timestamp():
-                    flag = True
-            if flag or len(points) == 0:
-                print(key, points)
-                print("Above")
         # traj is a list of PriorityPoints
         trips_dico = {
             key: TGeomPointSeq.from_instants([x.point for x in traj], upper_inc=True)

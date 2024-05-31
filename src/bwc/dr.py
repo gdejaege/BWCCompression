@@ -2,49 +2,15 @@ from sortedcontainers import SortedList
 from shapely.geometry import Point
 from pymeos.main.tpoint import TGeomPointSeq
 import pandas as pd
+from src.bwc.windowed import Windowed
 import src.helpers.utility as u
 
 from src.helpers.utility import PriorityPoint
 
 
-class BWC_DR:
+class BWC_DR(Windowed):
     def __init__(self, points, window_lenght, limit, nys):
-        self.instants = points  # dataframe of points (can be with SOG, COG)
-        self.window = window_lenght
-        self.limit = limit
-        self.nys = nys
-        # the points kept in the trips before the window
-        self.trips: dict[int, list[PriorityPoint]] = {}
-        # window related attributes
-        self.priority_list = SortedList(key=lambda x: x.priority)  # priorities!
-        self.window_trips = {}  # could be lists sorted by time !
-
-    def compress(self):
-        """Compress all the points (in different time windows)."""
-        start = self.instants.iloc[0].point.timestamp()
-        window_end = start + self.window
-
-        for i, row in self.instants.iterrows():
-            time = row.point.timestamp()
-            if time > window_end:
-                window_end = window_end + self.window
-                self.next_window()
-                # print(window_end)
-            self.add_point(PriorityPoint(row))
-            # if i > 4000:
-            #     break
-
-        # keep points of last window
-        self.next_window()
-        self.finalize_trips()
-
-    def next_window(self):
-        """Empty the priorityQueue to the kept points."""
-        for trip in self.window_trips:
-            self.trips.setdefault(trip, []).extend(self.window_trips[trip])
-
-        self.priority_list = SortedList(key=lambda x: x.priority)  # priorities!
-        self.window_trips = {}  # could be lists sorted by time !
+        super().__init__(points, window_lenght, limit, nys)
 
     def add_point(self, point):
         """Process the incoming point then remove from queue and update priorities."""

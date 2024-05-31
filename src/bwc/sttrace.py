@@ -1,55 +1,15 @@
 from sortedcontainers import SortedList
-import pandas as pd
+# import pandas as pd
+from src.bwc.windowed import Windowed
 from src.helpers.utility import PriorityPoint, compute_SED
 
 # from datetime import timedelta
-from pymeos import TGeomPointSeq
+# from pymeos import TGeomPointSeq
 
 
-class BWC_STTrace:
+class BWC_STTrace(Windowed):
     def __init__(self, points, window_lenght, limit, nys):
-        self.instants = points  # dataframe of points (can be with SOG, COG)
-        self.window = window_lenght
-        self.limit = limit
-        self.nys = nys
-        self.trips = {}  # trips # the points kept in the trips before the window
-        # window related attributes
-        self.priority_list = SortedList(key=lambda x: x.priority)  # priorities!
-        self.window_trips = {}  # could be lists sorted by time !
-        self.delays = []
-
-    def compress(self):
-        """Compress all the points (in different time windows)."""
-        start = self.instants.iloc[0].point.timestamp()
-        window_end = start + self.window
-        for _, row in self.instants.iterrows():
-            time = row.point.timestamp()
-            if time > window_end:
-                window_end = window_end + self.window
-                self.next_window(time)
-            self.add_point(PriorityPoint(row))
-
-        # keep points of last window
-        # last_time = max([x.timestamp() for x in self.instants.point])
-        self.next_window(None)
-        self.finalize_trips()
-
-    def compute_delays(self, time):
-        """Compute the delay between the reception and validation of the point."""
-        for point in self.priority_list:
-            self.delays.append((time - point.point.timestamp()))
-
-    def next_window(self, time):
-        """Empty the priorityQueue to the kept points."""
-        # self.compute_delays(time)
-        added = 0
-        for trip in self.window_trips:
-            self.trips.setdefault(trip, []).extend(self.window_trips[trip])
-            added += len(self.window_trips[trip])
-
-        self.priority_list = SortedList(key=lambda x: x.priority)  # priorities!
-        self.window_trips = {}  # could be lists sorted by time !
-        # the priorities buffered at the end are valid for next window start
+        super().__init__(points, window_lenght, limit, nys)
 
     def add_point(self, point):
         """Process the incoming point then remove from queue and update priorities."""
@@ -123,17 +83,6 @@ class BWC_STTrace:
                 self.nys,
             )
 
-    def finalize_trips(self):
-        """Build TGeomPoint sequences from the kept points."""
-        # traj is a list of PriorityPoints
-        trips_dico = {
-            key: TGeomPointSeq.from_instants([x.point for x in traj], upper_inc=True)
-            for key, traj in self.trips.items()
-        }
-
-        self.trips = pd.DataFrame.from_dict(
-            trips_dico, orient="index", columns=["trajectory"]
-        )
 
 
 def classical_STTrace(trips, instants, npoints, nys, delta):

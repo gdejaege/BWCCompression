@@ -19,18 +19,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import src.bwc.dr as BWC_DR
 import src.bwc.sttrace as BWC_STTrace
+import src.bwc.sttrace_delay as BWC_STTrace_Delay
 import src.bwc.STTraceImp as BWC_STTrace_Imp
+import src.bwc.STTraceImp_delay as BWC_STTrace_Imp_Delay
 import src.bwc.squish as BWC_SQUISH
 from src.helpers.data_loader import load_csv_to_df
 from src.helpers.utility import convert_points_trips, assess_algorithms, compile_trips
 
 import concurrent.futures
-
-# import BWC_SQUISH
-# import BWC_STTrace
-# import BWC_STTrace_Imp
-
-# import DeadReckoning as DR
 
 DIR = "data/preprocessed/"
 
@@ -65,13 +61,16 @@ def evaluate_dataset_case(test_name):
     print(dataset, columns)
 
     algorithms = [
-        # "BWC_Squish",
+        "BWC_Squish",
         "BWC_STTrace",
-        # "BWC_STTrace_Imp",
-        # "BWC_DR",
+        "BWC_STTrace_Delay",
+        "BWC_STTrace_Imp_Delay",
+        "BWC_STTrace_Imp",
+        "BWC_DR",
     ]
 
     all_res = pd.DataFrame(index=algorithms)
+    all_mean_delays = pd.DataFrame(index=algorithms)
     for test in tests:
         print(test)
         CONFIG = CONFIG_GLOBAL[test]  # subtest config
@@ -84,7 +83,7 @@ def evaluate_dataset_case(test_name):
 
         eval_delta = bwc_sttrace_delta / 2
 
-        res = compress_and_evaluate(
+        res, delays = compress_and_evaluate(
             points,
             trips,
             algorithms,
@@ -96,27 +95,59 @@ def evaluate_dataset_case(test_name):
         )
 
         res = res.rename(columns={"avg_error": test})
+        delays = delays.rename(columns={"avg. delay": test})
         all_res = pd.merge(all_res, res[test], left_index=True, right_index=True)
+        all_mean_delays = pd.merge(all_mean_delays, delays[test], left_index=True, right_index=True)
 
-        print(test)
 
+    print("distances:")
     print(all_res)
+    print()
+    print("delays:")
+    print(all_mean_delays)
     all_res.to_csv("res/bwc_compression/all.csv", mode="w")
 
 
 def compress_and_evaluate(points, trips, algorithms, **kwargs):
-    results = {}
-    results = compress_bwc(points, trips, algorithms, results, **kwargs)
+    compressed_trajectories, delays = {}, {}
+    compressed_trajectories, delays = compress_bwc(points, trips, algorithms, compressed_trajectories, delays, **kwargs)
 
-    all_compressed_trajectories = compile_trips(results, trips)
-    # print(all_compressed_trajectories)
+    all_compressed_trajectories = compile_trips(compressed_trajectories, trips)
+    
 
-    res = assess_results(all_compressed_trajectories, algorithms, kwargs["eval_delta"])
+    res = assess_compression(all_compressed_trajectories, algorithms, kwargs["eval_delta"])
+    mean_delays = analyse_delays(delays)
 
-    return res
+    return res, mean_delays
 
 
-def compress_bwc(points, trips, algos, results={}, **kwargs):
+def compress_bwc(points, trips, algos, compressed_trajectories={}, delays={}, **kwargs):
+    if "BWC_STTrace_Delay" in algos:
+        print("bwcsttrace_delay start")
+        bwc_sttrace_delay = BWC_STTrace_Delay.BWC_STTrace_Delay(
+            points,
+            window_lenght=kwargs["w_length"],
+            limit=kwargs["npoints"],
+            nys=kwargs["nys"],
+        )
+        bwc_sttrace_delay.compress()
+        compressed_trajectories["BWC_STTrace_Delay"] = bwc_sttrace_delay.trips
+        delays["BWC_STTrace_Delay"] = bwc_sttrace_delay.delays
+        print("BWCCSTTRace_Delay finished")
+    if "BWC_STTrace_Imp_Delay" in algos:
+        print("bwcsttraceImp_delay start")
+        bwc_sttrace_imp_delay = BWC_STTrace_Imp_Delay.BWC_STTrace_Imp_Delay(
+            points,
+            window_lenght=kwargs["w_length"],
+            limit=kwargs["npoints"],
+            nys=kwargs["nys"],
+            init_trips=trips,
+            eval_delta=kwargs["bwc_sttrace_delta"],
+        )
+        bwc_sttrace_imp_delay.compress()
+        compressed_trajectories["BWC_STTrace_Imp_Delay"] = bwc_sttrace_imp_delay.trips
+        delays["BWC_STTrace_Imp_Delay"] = bwc_sttrace_imp_delay.delays
+        print("BWCCSTTRaceImp_Delay finished")
     if "BWC_STTrace" in algos:
         print("bwcsttrace start")
         bwc_sttrace = BWC_STTrace.BWC_STTrace(
@@ -126,8 +157,10 @@ def compress_bwc(points, trips, algos, results={}, **kwargs):
             nys=kwargs["nys"],
         )
         bwc_sttrace.compress()
-        results["BWC_STTrace"] = bwc_sttrace.trips
+        compressed_trajectories["BWC_STTrace"] = bwc_sttrace.trips
+        delays["BWC_STTrace"] = bwc_sttrace.delays
         print("BWCCSTTRace finished")
+
     if "BWC_Squish" in algos:
         print("bwcsquish start")
         bwc_squish = BWC_SQUISH.BWC_SQUISH(
@@ -137,8 +170,11 @@ def compress_bwc(points, trips, algos, results={}, **kwargs):
             nys=kwargs["nys"],
         )
         bwc_squish.compress()
-        results["BWC_Squish"] = bwc_squish.trips
+        compressed_trajectories["BWC_Squish"] = bwc_squish.trips
+        delays["BWC_Squish"] = bwc_squish.delays
         print("bwcsquish finished")
+
+
     if "BWC_STTrace_Imp" in algos:
         print("bwcsttraceImp start")
         bwc_sttrace_imp = BWC_STTrace_Imp.BWC_STTrace_Imp(
@@ -150,7 +186,8 @@ def compress_bwc(points, trips, algos, results={}, **kwargs):
             eval_delta=kwargs["bwc_sttrace_delta"],
         )
         bwc_sttrace_imp.compress()
-        results["BWC_STTrace_Imp"] = bwc_sttrace_imp.trips
+        compressed_trajectories["BWC_STTrace_Imp"] = bwc_sttrace_imp.trips
+        delays["BWC_STTrace_Imp"] = bwc_sttrace_imp.delays
         print("BWCCSTTRaceImp finished")
 
     if "BWC_DR" in algos:
@@ -163,18 +200,19 @@ def compress_bwc(points, trips, algos, results={}, **kwargs):
         )
         bwc_dr.compress()
         bwc_dr.finalize_trips()
-        results["BWC_DR"] = bwc_dr.finalized_trips
+        compressed_trajectories["BWC_DR"] = bwc_dr.finalized_trips
+        delays["BWC_DR"] = bwc_dr.delays
         print("BWC_DR finished")
 
 
 
-    return results
+    return compressed_trajectories, delays
 
 
-def assess_results(all_compressed_trajectories, algorithms, eval_delta):
+def assess_compression(all_compressed_trajectories, algorithms, eval_delta):
     num_points = {}
     for algo in algorithms:
-        print(algo)
+        # print(algo)
         if algo in all_compressed_trajectories:
             num_point = sum(
                 [
@@ -198,6 +236,14 @@ def assess_results(all_compressed_trajectories, algorithms, eval_delta):
     print()
     print(res)
     return res
+
+def analyse_delays(delays):
+    mean_delays = {key: np.mean(v) for key, v in delays.items()}
+    mean_delays = pd.DataFrame.from_dict(mean_delays, orient="index", columns=["avg. delay"])
+    print(mean_delays)
+    print()
+    return mean_delays
+
 
 
 def compile_results(scores, distances, num_points, algos):
