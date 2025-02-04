@@ -1,15 +1,15 @@
 from sortedcontainers import SortedList
 
 import pandas as pd
-from src.helpers.utility import PriorityPoint, compute_SED, convert_trips_points
+from src.helpers.utility import PriorityPoint, compute_SED, convert_trip_points
 from src.bwc.windowed import Windowed
 
 from pymeos import TGeomPointSeq
 
 
 class BWC_SQUISH(Windowed):
-    def __init__(self, points, window_lenght, limit, nys):
-        super().__init__(points, window_lenght, limit, nys)
+    def __init__(self, points, window_length, limit, proj):
+        super().__init__(points, window_length, limit, proj)
         self.end_priorities = {} # buffered priorities to add to last point
 
     def next_window(self, time):
@@ -58,7 +58,8 @@ class BWC_SQUISH(Windowed):
 
     def remove_point(self):
         """Remove point with least priority and update its neighboors' priorities."""
-        to_remove = self.priority_list.pop(0)
+        # to_remove = self.priority_list.pop(0)
+        to_remove = self.pop()
         tid = to_remove.tid
         trip = self.window_trips[tid]
         to_remove_index = trip.index(to_remove)
@@ -98,29 +99,29 @@ class BWC_SQUISH(Windowed):
                 full_trip[point_id - 1].point,
                 point.point,
                 full_trip[point_id + 1].point,
-                self.nys,
+                self.proj,
             )
 
 
 
-def classical_squish(trips, ratio, delta, nys):
+class Classical_Squish():
     """Same but with only 1 time window."""
-    res = {}
-    for mmsi, row in trips.iterrows():
-        trajectory = row.trajectory
-        nb_points = max(len(trajectory.instants()) // ratio, 3)
-        points = convert_trips_points(mmsi, trajectory)
+    def __init__(self, trips, ratio, delta, proj) -> None:
+        self.res = {}
+        for mmsi, row in trips.iterrows():
+            trajectory = row.trajectory
+            nb_points = max(len(trajectory.instants()) // ratio, 3)
+            points = convert_trip_points(mmsi, trajectory)
 
-        bwc_squish = BWC_SQUISH(points, window_lenght=delta, limit=nb_points, nys=nys)
-        bwc_squish.compress()
-        res_mmsi = bwc_squish.trips
+            bwc_squish = BWC_SQUISH(points, window_=delta, limit=nb_points, proj=proj)
+            bwc_squish.compress()
+            res_mmsi = bwc_squish.finalized_trips
+        
+            for mmsi, row in res_mmsi.iterrows():
+                self.res[mmsi] = row.trajectory
 
-        for mmsi, row in res_mmsi.iterrows():
-            res[mmsi] = row.trajectory
-
-    results = pd.DataFrame.from_records(
-        ((mmsi, trajectory) for mmsi, trajectory in res.items()),
-        columns=["id", "trajectory"],
-        index="id",
-    )
-    return results
+        self.finalized_trips = pd.DataFrame.from_records(
+            ((mmsi, trajectory) for mmsi, trajectory in self.res.items()),
+            columns=["id", "trajectory"],
+            index="id",
+        )

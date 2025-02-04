@@ -7,19 +7,27 @@ from pyproj import Proj
 
 from pymeos import TGeomPointSeq
 
+import movingpandas as mpd
 
-class PriorityPoint:
+
+class Instant:
+    def __init__(self, row):
+        # self.row = row
+        self.tid = row["id"]
+        self.point = row["point"]  # TGeomInst
+        if hasattr(row, "sog"):
+            self.sog = row["sog"]
+            self.cog = row["cog"]
+
+
+class PriorityPoint(Instant):
     """
     Class wrapping a point to compute its priority.
     """
 
     def __init__(self, row):
-        self.tid = row["id"]
-        self.point = row["point"]  # TGeomInst
+        super().__init__(row)
         self.priority = 0
-        if hasattr(row, "sog"):
-            self.sog = row["sog"]
-            self.cog = row["cog"]
 
 
 def extract_wkt_from_traj(traj):
@@ -32,22 +40,32 @@ def extract_wkt_from_traj(traj):
     return res
 
 
-def convert_points_trips(points):
+def check_exists(fn):
+    return
+
+
+def convert_points_trips(points, remove_shorts=False):
     def detect_short_trips(points):
         small_trips = points.groupby("id").size()
         return small_trips.loc[small_trips <= 1]
 
-    trips = (
-        points.loc[~points["id"].isin(detect_short_trips(points).index)]
-        .groupby("id")
-        .aggregate({"point": lambda x: TGeomPointSeq.from_instants(x, upper_inc=True)})
-        .rename({"point": "trajectory"}, axis=1)
-    )
+    if remove_shorts:
+        trips = (
+            points.loc[~points["id"].isin(detect_short_trips(points).index)]
+            .groupby("id")
+            .aggregate({"point": lambda x: TGeomPointSeq.from_instants(x, upper_inc=True)})
+            .rename({"point": "trajectory"}, axis=1)
+        )
+    else:
+        trips = (points.groupby("id")
+            .aggregate({"point": lambda x: TGeomPointSeq.from_instants(x, upper_inc=True)})
+            .rename({"point": "trajectory"}, axis=1)
+        )
 
     return trips
 
 
-def convert_trips_points(trip_id, trajectory, sort=True):
+def convert_trip_points(trip_id, trajectory):
     """Convert a single trajectory into a dataframe of points.
 
     Not adapted if there is the SOG, COG or other information
@@ -60,22 +78,77 @@ def convert_trips_points(trip_id, trajectory, sort=True):
     return df
 
 
+def convert_trips_points(trips):
+    """Convert a dataframe of trips into a dataframe of points.
+
+    Not adapted if there is the SOG, COG or other information
+    """
+    all_instants = {}
+    for id, row in trips.iterrows():
+        instants = row.trajectory.instants()
+        all_instants[id] = instants
+
+    res = [(id, inst) for id, instants in all_instants.items() for inst in instants]
+    res.sort(key=lambda x: x[1].timestamp())
+    # print()
+    # for i in range(10):
+    #     print(res[i])
+
+    df = pd.DataFrame.from_records(res, columns=["id", "point"])
+    return df
+
+
+def convert_mpd_PyMeos(mpd_trips):
+    trips = mpd_trips.copy()
+    trips["trajectory"] = trips.apply(
+        lambda trip: TGeomPointSeq(
+            string=extract_wkt_from_traj(trip.trajectory), normalize=False
+        ),
+        axis=1,
+    )
+    return trips
+
+
+def convert_PyMeos_mpd(trips):
+    mpd_trips = trips.copy()
+    mpd_trips["trajectory"] = mpd_trips.apply(
+        lambda trip: mpd.Trajectory(trip.trajectory.to_dataframe(), 1), axis=1
+    )
+
+    return mpd_trips
+
+
 ##########################################################################
 ######                     Computing distances                     #######
 ##########################################################################
 
 
-def get_expected_pos_sog(start, time, nys):
+def get_expected_pos(trip, time, proj):
+    """The trip must contain at least one point.
+    The functions returns a point in the projection! 
+
+    """
+    last_point = trip[-1]
+    if hasattr(last_point, "sog"):
+        return get_expected_pos_sog(start=last_point, time=time, proj=proj)
+    # print("no sog")
+    elif len(trip) <= 1:
+        projected_last_point = Point(*proj(last_point.point.value().x, last_point.point.value().y))
+        return projected_last_point
+    else:
+        return get_expected_pos_anteprev(time, prev=trip[-1], anteprev=trip[-2], proj=proj)
+
+
+def get_expected_pos_sog(start, time, proj):
     """For AIS DATA. To adapt if other datasources."""
     start_time = start.point.timestamp()
-    start_pt = Point(nys(start.point.value().x, start.point.value().y))
+    start_pt = Point(proj(start.point.value().x, start.point.value().y))
 
     speed = start.sog * 1852 / 3600  # from knots to m/s
     angle = (
         ((start.cog) % 360) * np.pi / 180
     )  # angle degree % true north -> angle in radians
     delta = (time - start_time).seconds
-
     expected_pos = Point(
         start_pt.x + delta * speed * np.sin(float(angle)),
         start_pt.y + delta * speed * np.cos(float(angle)),
@@ -84,18 +157,19 @@ def get_expected_pos_sog(start, time, nys):
     return expected_pos
 
 
-def get_expected_pos_anteprev(time, prev, anteprev, nys):
-    prev_pt = Point(nys(prev.point.value().x, prev.point.value().y))
-    anteprev_pt = Point(nys(anteprev.point.value().x, anteprev.point.value().y))
+def get_expected_pos_anteprev(time, prev, anteprev, proj):
+    """Compute the expected position as extrapolation of to the two last points."""
+    prev_pt = Point(proj(prev.point.value().x, prev.point.value().y))
+    anteprev_pt = Point(proj(anteprev.point.value().x, anteprev.point.value().y))
     dt = (prev.point.timestamp() - anteprev.point.timestamp()).total_seconds()
     vx, vy = (prev_pt.x - anteprev_pt.x) / dt, (prev_pt.y - anteprev_pt.y) / dt
     new_dt = (time - prev.point.timestamp()).total_seconds()
     return Point(prev_pt.x + vx * new_dt, prev_pt.y + vy * new_dt)
 
 
-def compute_SED(A, B, C, nys, synchronized=True):
+def compute_SED(A, B, C, proj, synchronized=True):
     """Return the distance of point B to segment AC."""
-    # I should raise error if out of order 
+    # I should raise error if out of order
     if B == C or A == B:
         return B
 
@@ -113,17 +187,21 @@ def compute_SED(A, B, C, nys, synchronized=True):
         )
     else:
         # nys=Proj('EPSG:25832')
-        point_proj = nys(point.x, point.y)
-        line_proj = LineString([nys(p.value().x, p.value().y) for p in line.instants()])
+        point_proj = proj(point.x, point.y)
+        line_proj = LineString(
+            [proj(p.value().x, p.value().y) for p in line.instants()]
+        )
         distance = Point(point_proj).distance(line_proj)
     return distance
 
 
-def compute_distance(A, B, crs):
+def compute_distance(A, B, proj=None, crs=None, projected=(False, False)):
     """Computes the distance between two points in meters."""
-    nys = Proj(crs)
-    projA = Point(nys(A.x, A.y))
-    projB = Point(nys(B.x, B.y))
+    if proj is None:
+        proj = Proj(crs)
+    projA = A if projected[0] else Point(proj(A.x, A.y))
+    projB = B if projected[1] else Point(proj(B.x, B.y))
+    # exit()
     return projA.distance(projB)
 
 
@@ -132,6 +210,7 @@ def compute_distance(A, B, crs):
 ##########################################################################
 
 
+'''
 def assess_single_trajectory(compressed, original, delta, crs="EPSG:25832"):
     """The score will be the average distance of at regular interval of original trip to the compressed trajectory."""
     score = 0
@@ -161,6 +240,7 @@ def assess_single_trajectory(compressed, original, delta, crs="EPSG:25832"):
         time += delta
 
     return score, nmbr_instants, mx_distance
+'''
 
 
 def assess_single_trajectory_instants(compressed, original):

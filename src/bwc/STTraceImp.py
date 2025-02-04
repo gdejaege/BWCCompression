@@ -7,11 +7,12 @@ import haversine
 import pandas as pd
 
 
+
 class BWC_STTrace_Imp(Windowed):
-    def __init__(self, points, window_lenght, limit, nys, eval_delta, init_trips):
-        super().__init__(points, window_lenght, limit, nys)
+    def __init__(self, points, window_length, limit, proj, eval_delta, trips):
+        super().__init__(points, window_length, limit, proj)
         self.eval_delta = eval_delta
-        self.init_trips = init_trips
+        self.init_trips = trips
 
 
     def add_point(self, point):
@@ -47,7 +48,7 @@ class BWC_STTrace_Imp(Windowed):
 
     def remove_point(self):
         """Remove point with least priority and update its neighboors' priorities."""
-        to_remove = self.priority_list.pop(0)
+        to_remove = self.pop()
         tid = to_remove.tid
 
         trip = self.window_trips[tid]
@@ -122,6 +123,9 @@ class BWC_STTrace_Imp(Windowed):
             new_error += distance_point_line_time(correct_point, time, new_curve)
             old_error += distance_point_line_time(correct_point, time, old_curve)
             time += self.eval_delta
+            del correct_point
+        del old_curve
+        del new_curve
         return new_error - old_error
 
     def finalize_trips(self):
@@ -133,6 +137,6 @@ class BWC_STTrace_Imp(Windowed):
         }
 
         #
-        self.trips = pd.DataFrame.from_dict(
+        self.finalized_trips = pd.DataFrame.from_dict(
             trips_dico, orient="index", columns=["trajectory"]
         )

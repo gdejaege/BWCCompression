@@ -8,8 +8,8 @@ from src.helpers.utility import PriorityPoint, compute_SED
 
 
 class BWC_STTrace(Windowed):
-    def __init__(self, points, window_lenght, limit, nys):
-        super().__init__(points, window_lenght, limit, nys)
+    def __init__(self, points, window_length, limit, proj):
+        super().__init__(points, window_length, limit, proj)
 
     def add_point(self, point):
         """Process the incoming point then remove from queue and update priorities."""
@@ -44,7 +44,9 @@ class BWC_STTrace(Windowed):
 
     def remove_point(self):
         """Remove point with least priority and update its neighboors' priorities."""
-        to_remove = self.priority_list.pop(0)
+        # to_remove = self.priority_list.pop(0)
+        to_remove = self.pop()
+
         tid = to_remove.tid
 
         trip = self.window_trips[tid]
@@ -80,14 +82,14 @@ class BWC_STTrace(Windowed):
                 extended_trip[point_id - 1].point,
                 point.point,
                 extended_trip[point_id + 1].point,
-                self.nys,
+                self.proj,
             )
 
 
 
-def classical_STTrace(trips, instants, npoints, nys, delta):
+def classical_STTrace(trips, instants, npoints, proj, delta):
     """Same but with 1 time window."""
 
-    bwc_sttrace = BWC_STTrace(instants, window_lenght=delta, limit=npoints, nys=nys)
+    bwc_sttrace = BWC_STTrace(instants, window_lenght=delta, limit=npoints, proj=proj)
     bwc_sttrace.compress()
     return bwc_sttrace.trips

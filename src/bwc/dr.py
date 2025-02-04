@@ -9,8 +9,8 @@ from src.helpers.utility import PriorityPoint
 
 
 class BWC_DR(Windowed):
-    def __init__(self, points, window_lenght, limit, nys):
-        super().__init__(points, window_lenght, limit, nys)
+    def __init__(self, points, window_length, limit, proj):
+        super().__init__(points, window_length, limit, proj)
 
     def add_point(self, point):
         """Process the incoming point then remove from queue and update priorities."""
@@ -36,7 +36,9 @@ class BWC_DR(Windowed):
 
     def remove_point(self):
         """Remove point with least priority and update its neighboors' priorities."""
-        to_remove = self.priority_list.pop(0)
+        # to_remove = self.priority_list.pop(0)
+        to_remove = self.pop()
+
         tid = to_remove.tid
         trip = self.window_trips[tid]
         to_remove_index = trip.index(to_remove)
@@ -71,23 +73,23 @@ class BWC_DR(Windowed):
             return u.get_expected_pos_sog(
                 start=extended_trip[index - 1],
                 time=point.point.timestamp(),
-                nys=self.nys,
+                proj=self.proj,
             )
         elif index <= 1:
             previous = extended_trip[index - 1]
-            return Point(self.nys(previous.point.value().x, previous.point.value().y))
+            return Point(self.proj(previous.point.value().x, previous.point.value().y))
         else:
             return u.get_expected_pos_anteprev(
                 time=point.point.timestamp(),
                 prev=extended_trip[index - 1],
                 anteprev=extended_trip[index - 2],
-                nys=self.nys,
+                proj=self.proj,
             )
 
     def evaluate_point(self, point):
         """returns the distance between point and the expected position."""
         expected_pos = self.get_expected_pos(point)
-        current = Point(self.nys(point.point.value().x, point.point.value().y))
+        current = Point(self.proj(point.point.value().x, point.point.value().y))
         distance = expected_pos.distance(current)
         return distance
 
