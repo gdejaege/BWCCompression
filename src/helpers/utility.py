@@ -1,3 +1,7 @@
+from datetime import timedelta
+
+import inspect
+
 from shapely.geometry import Point, LineString
 import numpy as np
 import haversine
@@ -5,7 +9,7 @@ import pandas as pd
 
 from pyproj import Proj
 
-from pymeos import TGeomPointSeq
+from pymeos import TGeomPointSeq, TGeomPointInst
 
 import movingpandas as mpd
 
@@ -170,9 +174,11 @@ def get_expected_pos_anteprev(time, prev, anteprev, proj):
 def compute_SED(A, B, C, proj, synchronized=True):
     """Return the distance of point B to segment AC."""
     # I should raise error if out of order
-    if B == C or A == B:
-        return B
+    delta = timedelta(seconds=1)
+    if C.timestamp() - B.timestamp() < delta or B.timestamp() - A.timestamp() < delta:
+        return 0
 
+    # try :
     point = B.value()
 
     line = TGeomPointSeq.from_instants([A, C])
@@ -328,3 +334,24 @@ def compile_trips(results, original_trips):
         )
 
     return all_compressed_trajectories
+
+def project_traectory(trajectory, proj):
+    transformed_instants = []
+    for instant in trajectory.instants():
+        point = instant.value()  # Extract Shapely Point
+        # new_point = transform(transformer.transform, point)  # Reproject
+        new_point = Point(*proj(point.x, point.y))
+        transformed_instants.append(TGeomPointInst(point=new_point, timestamp=instant.timestamp()))
+
+    return TGeomPointSeq(instant_list=transformed_instants, upper_inc=True)
+
+def filter_args(cls, param_dict):
+    sig = inspect.signature(cls.__init__)
+    # Extract argument names (excluding 'self')
+    arg_names = [param for param in sig.parameters if param != 'self' and param != "points"]
+
+    # Filter the params dictionary to match the class constructor
+    filtered_args = {k: v for k, v in param_dict.items() if k in arg_names}
+    return filtered_args
+
+

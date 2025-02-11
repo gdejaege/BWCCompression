@@ -20,14 +20,19 @@ class BWC_uniform():
     def compress(self):
         """Compress all the points (in different time windows)."""
         start = self.instants.iloc[0].point.timestamp()
+        end = max([pt.timestamp() for pt in self.instants["point"]])
         next_time = start
 
         self.kept_points = []
         window_points = []
+        prev = None
+        print("until", (end - start).total_seconds()/3600, end=":")
         for _, row in self.instants.iterrows():
             time = row.point.timestamp()
             if time >= next_time:
-                print((time - start).days, end="")
+                if (time - start).seconds // 3600 != prev:
+                    print((time - start).seconds // 3600, end="")
+                    prev = (time - start).seconds // 3600
                 self.kept_points.append(row)
                 next_time += self.delta
         print()

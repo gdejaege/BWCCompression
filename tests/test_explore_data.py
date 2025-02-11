@@ -1,3 +1,4 @@
+from datetime import timedelta
 
 from pyproj import Proj
 
@@ -57,12 +58,26 @@ def plot_data(trips):
     return
 
 
+
 if __name__ == "__main__":
     pymeos_initialize()
-    dataset = "ais_20210101"
-    dataset = "flights"
-    trips, points = check_squish(dataset)
-    trips, points = load_data(dataset)
+    dataset = "taxi_2"
+    compression_ratio = 0.1
+
+    window = str(timedelta(hours=12))
+    case = "taxi_0_2"
+    algo = "BWC_SQUISH"
+    points = load_csv_to_df(dataset, columns=["id", "point"], quality="preprocessed")
+    print(points.head())
+    print(len(points))
+    trips = convert_points_trips(points)
+    print(trips.head())
+    print(len(trips))
+
+
+    points = load_csv_to_df(dataset, columns=["id", "point"], quality="preprocessed")
+    print(points.head())
+    print(len(points))
     # trips, points = load_data(dataset)
     # ts = [x.timestamp() for x in points.point]
 

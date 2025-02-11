@@ -21,14 +21,19 @@ class BWC_Random():
     def compress(self):
         """Compress all the points (in different time windows)."""
         start = self.instants.iloc[0].point.timestamp()
+        end = max([pt.timestamp() for pt in self.instants["point"]])
         window_end = start + self.window
 
         self.kept_points = []
+        print("until", (end - start).total_seconds()/3600, end=":")
+        prev = None
         window_points = []
         for _, row in self.instants.iterrows():
             time = row.point.timestamp()
             if time > window_end:
-                print((time - start).days, end="")
+                if (time - start).seconds // 3600 != prev:
+                    print((time - start).seconds // 3600, end="")
+                    prev = (time - start).seconds // 3600
                 selected = random.sample(window_points, min(self.limit, len(window_points)))
                 self.kept_points.extend(selected)
                 self.compute_delays(selected, time)

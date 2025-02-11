@@ -1,6 +1,8 @@
 import haversine
 import numpy as np
 
+from helpers.utility import project_traectory
+
 
 def SED_trips(original_trips, compressed_trips, precision):
     def assess_single_trajectory(original, compressed, delta):
@@ -51,22 +53,31 @@ def length_loss_rate(original_trips, compressed_trips):
     compressed_length = compressed_trips["trajectory"].apply(lambda x: x.length()).sum()
     return (original_length- compressed_length) / original_length
 
-def synchronized_speed_difference(original_trips, compressed_trips, precision):
+def synchronized_speed_difference(original_trips, compressed_trips, precision, projection):
     """Result in m/s"""
-    def assess_speed_single_trajectory(original, compressed, delta):
+    def assess_speed_single_trajectory(original, compressed, delta, proj):
+        original = project_traectory(original, proj)
+        compressed = project_traectory(compressed, proj)
         cum_speed_error, nmbr_instants = 0, 0
         compressed_start = min([x.timestamp() for x in compressed.instants()])
         compressed_end = max([x.timestamp() for x in compressed.instants()])
-        i_max = (compressed_end - compressed_start)/delta
-        timestamps = [compressed_start + i*delta for i in range(i_max)]
+        original_end = max([x.timestamp() for x in original.instants()])
+        i_max = (compressed_end - compressed_start)//delta
+        timestamps = [compressed_start + i*delta for i in range(1, i_max)]
         original_length = original.cumulative_length()
         compressed_length = compressed.cumulative_length()
 
+
+
         for i in range(len(timestamps) - 1):
+            # print(delta)
+            # print(timestamps[i+1], timestamps[i], original_end)
+            # print("original_lenght i+1", original_length.value_at_timestamp(timestamps[i+1]) )
+            # print("original_lenght i", original_length.value_at_timestamp(timestamps[i]) )
             length_o = original_length.value_at_timestamp(timestamps[i+1]) - original_length.value_at_timestamp(timestamps[i])
             length_c = compressed_length.value_at_timestamp(timestamps[i+1]) - compressed_length.value_at_timestamp(timestamps[i])
 
-            cum_speed_error += np.abs(length_o - length_c) / delta.to_seconds()
+            cum_speed_error += np.abs(length_o - length_c) / delta.total_seconds()
             nmbr_instants += 1
 
         return cum_speed_error, nmbr_instants
@@ -82,6 +93,7 @@ def synchronized_speed_difference(original_trips, compressed_trips, precision):
             original=original_trips.loc[id].trajectory,
             compressed=compressed_trips.loc[id].trajectory,
             delta=precision,
+            proj=projection
         )
         cum_speed_error += cum_speed_error_trip
         nmbr_instants += nmbr_instants_trip

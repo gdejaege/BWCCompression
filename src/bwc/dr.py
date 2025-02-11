@@ -88,7 +88,7 @@ class BWC_DR(Windowed):
 
     def evaluate_point(self, point):
         """returns the distance between point and the expected position."""
-        expected_pos = self.get_expected_pos(point)
+        expected_pos = self.get_expected_pos(point) # returns a projected position!
         current = Point(self.proj(point.point.value().x, point.point.value().y))
         distance = expected_pos.distance(current)
         return distance

@@ -17,6 +17,7 @@ from bwc.squish import BWC_SQUISH
 from bwc.squish_delay import BWC_SQUISH_Delay
 from bwc.sttrace import BWC_STTrace
 from bwc.sttrace_delay import BWC_STTrace_Delay
+from bwc.uniform import BWC_uniform
 from helpers.data_handler import load_compressed_trajectories
 from helpers.metrics import SED_trips, length_loss_rate, synchronized_speed_difference
 
@@ -30,15 +31,20 @@ CONFIG_PATH = "tests/config_compress.ini"
 
 def assess_bwc_algorithms(datasets, compression_ratios, algorithms, metrics):
     for dataset in datasets:
+        print("\n", dataset)
         all_points = load_csv_to_df(dataset, ["id", "point"], quality="preprocessed")
         init_trips = convert_points_trips(all_points)
+        print(all_points.head())
+        print(init_trips.head())
 
         for compression_ratio in compression_ratios:
             scores = defaultdict(dict)
             case_cfg = load_config(dataset, compression_ratio)
             eval_delta = case_cfg["eval_delta"]
+            proj = case_cfg["proj"]
 
             for algorithm in algorithms:
+                print("Assessing", algorithm)
                 for metric in metrics:
                     scores[metric][algorithm.__name__] = defaultdict(dict)
 
@@ -46,7 +52,7 @@ def assess_bwc_algorithms(datasets, compression_ratios, algorithms, metrics):
                     window_name = str(case_cfg["windows"][window_index])
                     compressed_points = load_compressed_trajectories(algorithm, case_cfg, window_index)
                     compressed_trips = convert_points_trips(compressed_points)
-                    score_algo_window = assess_compressed_points(compressed_trips, init_trips, eval_delta, metrics)
+                    score_algo_window = assess_compressed_trips(compressed_trips, init_trips, eval_delta, metrics, proj)
                     print("score", algorithm.__name__, case_cfg["windows"][window_index], score_algo_window)
                     for metric in score_algo_window:
                         scores[metric][algorithm.__name__][window_name] = score_algo_window[metric]
@@ -67,30 +73,34 @@ def save_scores(scores, dataset, compression_ratio):
         df.to_csv(folder+fn, mode="a")
         # all_res.to_csv("res/bwc_compression/all.csv", mode="a")
 
-def assess_compressed_points(compressed_points, init_points, eval_delta, metrics):
+def assess_compressed_trips(compressed_trips, init_trips, eval_delta, metrics, proj):
     scores = {}
     for metric in metrics:
+        print(metric)
         if metric == "SED":
-            scores[metric] = SED_trips(init_points, compressed_points, eval_delta)
+            scores[metric] = SED_trips(init_trips, compressed_trips, eval_delta)
         elif metric == "LLR":
-            scores[metric] = length_loss_rate(init_points, compressed_points)
+            scores[metric] = length_loss_rate(init_trips, compressed_trips)
         elif metric == "SSD":
-            scores[metric] = synchronized_speed_difference(init_points, compressed_points)
+            scores[metric] = synchronized_speed_difference(init_trips, compressed_trips, eval_delta, proj)
     return scores
 
 if __name__ == "__main__":
     pymeos_initialize()
-    datasets = ["ais"]
+    datasets = ["ais", "birds", "flights", "taxi"]
+    datasets = ["ais", "birds", "flights"]
+    datasets = ["taxi_2"]
     algorithms = [
-        BWC_STTrace_Imp,
-        BWC_STTrace_Imp_Delay,
+        BWC_Random,
+        BWC_uniform,
         BWC_SQUISH,
         BWC_SQUISH_Delay,
         BWC_STTrace,
         BWC_STTrace_Delay,
+        BWC_STTrace_Imp,
+        BWC_STTrace_Imp_Delay,
         BWC_DR,
-        BWC_Random,
     ]
     compression_ratios = [0.1]
-    metrics = ["SED", "LLR", "SSD"]
+    metrics = ["SSD", "LLR", "SED"]
     assess_bwc_algorithms(datasets, compression_ratios, algorithms, metrics)

@@ -26,8 +26,8 @@ class Windowed:
         """Compress all the points (in different time windows)."""
         start = self.instants.iloc[0].point.timestamp()
         # gc.set_debug(gc.DEBUG_LEAK)
-        print("start", start)
-        print(self.window)
+        # print("start", start)
+        print(self.window, end=": ")
         window_end = start + self.window
         print_progress = self.print_progress()
         for _, row in self.instants.iterrows():

@@ -1,0 +1,111 @@
+% This file was created with tikzplotlib v0.10.1.
+\begin{tikzpicture}
+
+\definecolor{crimson2143940}{RGB}{214,39,40}
+\definecolor{darkgray176}{RGB}{176,176,176}
+\definecolor{darkorange25512714}{RGB}{255,127,14}
+\definecolor{forestgreen4416044}{RGB}{44,160,44}
+\definecolor{goldenrod18818934}{RGB}{188,189,34}
+\definecolor{gray127}{RGB}{127,127,127}
+\definecolor{mediumpurple148103189}{RGB}{148,103,189}
+\definecolor{orchid227119194}{RGB}{227,119,194}
+\definecolor{sienna1408675}{RGB}{140,86,75}
+\definecolor{steelblue31119180}{RGB}{31,119,180}
+
+\begin{axis}[
+log basis x={10},
+tick align=outside,
+tick pos=left,
+title={CSV Data Plot (Semi-Log X-Axis)},
+x grid style={darkgray176},
+xlabel={Duration (hh:mm:ss)},
+xmajorgrids,
+xmin=2586.56772388595, xmax=3727812.69593587,
+xminorgrids,
+xmode=log,
+xtick style={color=black},
+xtick={3600,21600,86400,604800,2678400},
+xticklabel style={rotate=45.0},
+xticklabels={1:00:00,6:00:00,{1 day, 0:00:00},{7 days, 0:00:00},{31 days, 0:00:00}},
+y grid style={darkgray176},
+ylabel={Value},
+ymajorgrids,
+ymin=0, ymax=0.4,
+yminorgrids,
+ytick style={color=black}
+]
+\addplot [semithick, steelblue31119180, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.344232308677492
+21600 0.348783985821651
+86400 0.347933775780524
+604800 0.343772450134697
+2678400 0.350512451053572
+};
+\addplot [semithick, darkorange25512714, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.334966770924552
+21600 0.281771503053947
+86400 0.281771503053947
+604800 0.281771503053947
+2678400 0.281771503053947
+};
+\addplot [semithick, forestgreen4416044, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.194618309985417
+21600 0.263629620476374
+86400 0.201179543563334
+604800 0.162726683347522
+2678400 0.144586352008088
+};
+\addplot [semithick, crimson2143940, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.3293462901568
+21600 0.262247539277624
+86400 0.201564293056938
+604800 0.162788382651481
+2678400 0.144593213443892
+};
+\addplot [semithick, mediumpurple148103189, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.195316315609548
+21600 0.228998474951712
+86400 0.150326453844784
+604800 0.123571184149737
+2678400 0.104712007115735
+};
+\addplot [semithick, sienna1408675, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.221769888322473
+21600 0.139560510602424
+86400 0.131793382879475
+604800 0.12162390439278
+2678400 0.104127202042752
+};
+\addplot [semithick, orchid227119194, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.196197915325906
+21600 0.236396114794932
+86400 0.189126398035006
+604800 0.160717491023278
+2678400 0.13762038286092
+};
+\addplot [semithick, gray127, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.253313323729724
+21600 0.180253312013572
+86400 0.17478911010176
+604800 0.159503924164091
+2678400 0.137153505809033
+};
+\addplot [semithick, goldenrod18818934, mark=*, mark size=3, mark options={solid}]
+table {%
+3600 0.293691647612898
+21600 0.263993325870401
+86400 0.260334369772687
+604800 0.246992735600871
+2678400 0.235959967418003
+};
+\end{axis}
+
+\end{tikzpicture}
