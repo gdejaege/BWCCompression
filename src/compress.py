@@ -25,6 +25,8 @@ import sys
 import os
 
 import src.bwc.random as BWC_Random
+from bwc.dr_anomaly import BWC_DR_anomaly_new
+from bwc.dr_with_anomalies import BWC_DR_Anomaly
 from bwc.uniform import BWC_uniform
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -65,6 +67,7 @@ def compress_case(dataset, compression_ratio, algorithms):
     limits = cfg["points"]
     # pprint.pprint(cfg)
     points = load_csv_to_df(dataset, cfg["columns"], quality="preprocessed")
+    print(len(points))
     trips = convert_points_trips(points)  # create trips here
     cfg["trips"] = trips
 
@@ -119,10 +122,19 @@ def analyse_delays(delays):
     mean_delays = {key: np.mean(v) for key, v in delays.items()}
     return mean_delays
 
+def compress_anomalies():
+    datasets = ["ais_anomalies"]
+    compression_ratios = [x/1000 for x in range(100, 300, 25)][1:]
+    print(compression_ratios)
+    algorithms = [BWC_DR_Anomaly]
+    algorithms = [BWC_DR.BWC_DR, BWC_DR_anomaly_new]
+    compress(algorithms, datasets, compression_ratios)
 
 if __name__ == "__main__":
+    compress_anomalies()
+    exit()
     datasets = ["ais", "birds", "flights", "taxi"]
-    datasets = ["taxi_2"]
+    datasets = ["ais_2"]
     algorithms = [
         BWC_uniform,
         BWC_Random.BWC_Random,

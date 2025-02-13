@@ -1,0 +1,8 @@
+,ais_anomalies_0:00:15,ais_anomalies_0:00:30
+<class 'bwc.dr_with_anomalies.BWC_DR_Anomaly'>,7.031535915904224,14.639280151128492
+,ais_anomalies_0:00:15,ais_anomalies_0:00:30
+<class 'src.bwc.dr.BWC_DR'>,7.050057009371785,14.596626122692474
+,ais_anomalies_0:00:15,ais_anomalies_0:00:30
+<class 'bwc.dr_with_anomalies.BWC_DR_Anomaly'>,7.031535915904224,14.639280151128492
+<class 'src.bwc.dr.BWC_DR'>,7.050057009371785,14.596626122692474
+<class 'bwc.dr_anomaly.BWC_DR_anomaly_new'>,6.848327261603493,14.393795777682033

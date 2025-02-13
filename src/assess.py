@@ -12,6 +12,8 @@ import os
 from bwc.STTraceImp import BWC_STTrace_Imp
 from bwc.STTraceImp_delay import BWC_STTrace_Imp_Delay
 from bwc.dr import BWC_DR
+from bwc.dr_anomaly import BWC_DR_anomaly_new
+from bwc.dr_with_anomalies import BWC_DR_Anomaly
 from bwc.random import BWC_Random
 from bwc.squish import BWC_SQUISH
 from bwc.squish_delay import BWC_SQUISH_Delay
@@ -89,7 +91,7 @@ if __name__ == "__main__":
     pymeos_initialize()
     datasets = ["ais", "birds", "flights", "taxi"]
     datasets = ["ais", "birds", "flights"]
-    datasets = ["taxi_2"]
+    datasets = ["ais_anomalies"]
     algorithms = [
         BWC_Random,
         BWC_uniform,
@@ -101,6 +103,7 @@ if __name__ == "__main__":
         BWC_STTrace_Imp_Delay,
         BWC_DR,
     ]
-    compression_ratios = [0.1]
+    algorithms = [BWC_DR_anomaly_new, BWC_DR]
+    compression_ratios = [x/1000 for x in range(100, 300, 25)][1:]
     metrics = ["SSD", "LLR", "SED"]
     assess_bwc_algorithms(datasets, compression_ratios, algorithms, metrics)

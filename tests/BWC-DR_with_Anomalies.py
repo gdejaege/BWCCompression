@@ -7,7 +7,7 @@ from pyproj import Proj
 
 from bwc.dr_with_anomalies import BWC_DR_Anomaly
 from helpers.data_handler import load_csv_to_df, save_df_to_csv
-from helpers.utility import convert_trip_points, convert_trips_points
+from helpers.utility import convert_trip_points, convert_trips_points, convert_points_trips
 from plotters.plot_with_anomalies import plot_trajectories_to_fig
 
 
@@ -30,6 +30,8 @@ def preprocess_ais_anomalies(limit=int(1e4)):
     columns = ["mmsi", "timestamp", "lon", "lat", "is_anomaly", "knots", "cog"]
     instants = load_csv_to_df(dataset, columns, process=False, names_transform=RENAME_COLS)
     print("raw loaded", len(instants))
+    instants = instants.drop_duplicates(subset=['id', 'Timestamp'], keep='first')
+    print("duplicates dropped loaded", len(instants))
     instants["point"] = instants.progress_apply(
         lambda row: TGeomPointInst(
             point=shp.Point(row["Longitude"], row["Latitude"]),
@@ -41,9 +43,11 @@ def preprocess_ais_anomalies(limit=int(1e4)):
     instants = instants.sort_values(by="Timestamp").head(limit)
     instants.drop(["Timestamp", "Longitude","Latitude"], axis=1, inplace=True)
 
-    point_counts = instants['id'].value_counts()
-    instants = instants[instants['id'].isin(point_counts[point_counts >= 10].index)]
+    # point_counts = instants['id'].value_counts()
+    # instants = instants[instants['id'].isin(point_counts[point_counts >= 10].index)]
 
+    trips = convert_points_trips(instants)
+    print("trips", len(trips))
     print("instant", len(instants))
     print("saving")
     save_df_to_csv(dataset, instants, quality="preprocessed")
@@ -55,7 +59,7 @@ def explore_data(instants):
     print(instants.head(), len(instants))
     start = instants.iloc[0].point.timestamp()
     end = instants.iloc[-1].point.timestamp()
-    # end = max([pt.timestamp() for pt in self.instants["point"]])
+    end = max([pt.timestamp() for pt in self.instants["point"]])
     print(start, end)
 
 
@@ -89,15 +93,17 @@ def test_sorted_list():
 
 if __name__ == "__main__":
     pymeos_initialize()
-    # exit()
-    # instants = preprocess_ais_anomalies(limit=int(1e6))
+    instants = preprocess_ais_anomalies(limit=int(1e5))
     dataset = "ais_anomalies"
     columns = ["id", "point", "is_anomaly", "sog", "cog"]
     instants = load_csv_to_df(dataset, columns, quality="preprocessed")
     print(instants.head())
-    window_size = timedelta(minutes=20)
-    limit = 200
-    proj =  Proj("EPSG:32632", preserve_units=True)
-    anomaly_duration = timedelta(seconds=30)
-    analyse_compression(instants, window_size, limit, proj, anomaly_duration)
+    print(len(instants))
+    timestamps = [pt.timestamp() for pt in instants["point"]]
+    print(min(timestamps), max(timestamps))
+    # window_size = timedelta(minutes=20)
+    # limit = 200
+    # proj =  Proj("EPSG:32632", preserve_units=True)
+    # anomaly_duration = timedelta(seconds=30)
+    # analyse_compression(instants, window_size, limit, proj, anomaly_duration)
 

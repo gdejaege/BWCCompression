@@ -113,6 +113,9 @@ def load_config(dataset, compression_ratio):
     cfg["windows"] = [timedelta(**{time_unit: float(window_size)}) for window_size in CONFIG["WINDOWS"]]
     cfg["points"] = [int(int(x)*compression_ratio*10) for x in CONFIG["POINTS_WINDOWS"]]
 
+    if "ANOMALY_THRESHOLD" in CONFIG:
+        cfg["anomaly_threshold"] = timedelta(**{time_unit: CONFIG.as_int("ANOMALY_THRESHOLD")})
+
     return cfg
 
 

@@ -25,12 +25,22 @@ class BWC_DR_Anomaly():
         self.delays = []
         self.finalized_trips: pd.DataFrame
         random.seed(0)
-        self.anomalies = {}
+        self.anomalies = set()
         self.anomaly_threshold = anomaly_threshold
+
+    def check_point_duplicate(self, new_point):
+        for point in self.priority_list:
+            if new_point.tid == point.tid :
+                if new_point.point.timestamp() == point.point.timestamp():
+                    return True
+        return False
 
     def add_point(self, point):
         """Process the incoming point then remove from queue and update priorities."""
         # priority = self.evaluate_point(point)
+        if self.check_point_duplicate(point):
+            return
+
         point.priority = float("inf")
         self.priority_list.add(point)
         self.window_trips.setdefault(point.tid, []).append(point)
@@ -103,10 +113,8 @@ class BWC_DR_Anomaly():
     def evaluate_point(self, point):
         """returns the distance between point and the expected position."""
         factor = 1
-        if self.same_point_already_in(point.tid, point.point.timestamp()):
-            factor = 0
-        elif self.close_to_anomaly(point.tid, point.point.timestamp()):
-            factor = 100
+        if self.close_to_anomaly(point.tid, point.point.timestamp()):
+            factor = 4
         expected_pos = self.get_expected_pos(point)
         current = Point(self.proj(point.point.value().x, point.point.value().y))
         distance = expected_pos.distance(current)
@@ -115,9 +123,9 @@ class BWC_DR_Anomaly():
         return distance*factor
 
     def same_point_already_in(self, tid, timestamp):
-        kept_points = self.trips.get(tid, [])
-        if timestamp in [pt.point.timestamp() for pt in kept_points]:
-            return True
+        # kept_points = self.trips.get(tid, [])
+        # if timestamp in [pt.point.timestamp() for pt in kept_points]:
+        #     return True
         for pt in self.priority_list:
             if pt.tid == tid and pt.point.timestamp() == timestamp and pt.priority == float("inf"):
                 return True
@@ -197,6 +205,7 @@ class BWC_DR_Anomaly():
 
         self.priority_list = SortedList(key=lambda x: x.priority)  # priorities!
         self.window_trips = {}  # could be lists sorted by time !
+        self.anomalies = set()
         # the priorities buffered at the end are valid for next window start
 
     def pop(self):
@@ -213,12 +222,7 @@ class BWC_DR_Anomaly():
 
     def check_anomaly(self, row):
         if row["is_anomaly"]:
-            self.anomalies.setdefault(row["id"], []).append(row["point"].timestamp())
+            self.anomalies.add(row["id"])
 
     def close_to_anomaly(self, tid, timestamp):
-        res = False
-        for anomaly_time in self.anomalies.get(tid, []):
-            if timestamp > anomaly_time and timestamp - anomaly_time <= self.anomaly_threshold:
-                res = True
-                break
-        return res
+        return tid in self.anomalies

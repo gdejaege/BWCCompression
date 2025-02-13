@@ -48,7 +48,7 @@ def plot_csv_data(file_path, out_fn, limits=None):
 
     plt.grid(True, which="both", linestyle="--", alpha=0.6)
     legend = plt.legend()
-    legend.remove()  # This prevents TikZ from misinterpreting the legend
+    # legend.remove()  # This prevents TikZ from misinterpreting the legend
     # tikzplotlib.save(out_fn)
     plt.show()
 
@@ -58,16 +58,17 @@ def res_fn(dataset, case, metric):
 if __name__ == "__main__":
     datasets = ["taxi"]
     datasets = ["ais", "birds", "flights", "taxi"]
-    dataset = "taxi_2"
-    case = "0.1"
+    dataset = "birds"
+    dataset = "ais_anomalies"
+    case = "0.3"
     metric = "SSD"
     metrics = ["SED", "LLR", "SSD"]
-    limits = [(0, 15), (0, 0.2), (0, 0.2)] # AIS limits
-    limits = [(0, 5000), (0, 0.5), (0, 0.4)] # birds limit
     limits = [(0, 20), (0, 5500), (0, 5000), (0, 200)] # limits SED
     limits = [(0, 0.15), (0.15, 0.4), (0, 0.15), (0, 0.2)] # limits LLR
     limits = [(0.04, 0.16), (0.08, 0.4), (5, 15), (0, 0.2)] # limits SSD
+    limits = [(0, 5000), (0, 0.5), (0, 0.4)] # birds limit
     limits = [(0, 1000), (0, 0.7), (0, 2)] # taxis
+    limits = [(0, 30), (0.01, 0.27), (0.075, 0.1)] # AIS limits
 
     for metric, limit in zip(metrics, limits):
         fn = res_fn(dataset, case, metric)
