@@ -55,11 +55,71 @@ def plot_csv_data(file_path, out_fn, limits=None):
 def res_fn(dataset, case, metric):
     return "res/"+metric+"/"+dataset +str(case) +".csv"
 
+def plot_metric_maris(metric="SED"):
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import glob
+    import re
+    folder = "res/"+metric+"/"
+
+
+    # Get all CSV files
+    files = glob.glob(folder+"ais_anomalies_24h*.csv")
+    print(files)
+
+    # Initialize dictionaries to store data
+    bwcd_values = {}
+    bwcd_anomaly_values = {}
+
+    # Process each file
+    for file in files:
+        # Extract x from filename using regex
+        match = re.search(r'ais_anomalies_24h([\d.]+)\.csv', file)
+        if match:
+            x_value = float(match.group(1))  # Convert x to float
+
+            # Read CSV file
+            df = pd.read_csv(file, index_col=0)
+            # print(df.head())
+            v1 = df.loc["BWC_DR"]["0:00:30"]
+            v2 = df.loc["BWC_DR_anomaly_new"]["0:00:30"]
+            print(v1, v2, v2-v1)
+
+            # Extract values for the first column
+            if "BWC_DR" in df.index:
+                bwcd_values[x_value] = df.iloc[0, 0]
+            if "BWC_DR_anomaly_new" in df.index:
+                bwcd_anomaly_values[x_value] = df.iloc[1, 0]
+
+    # Sort values by x-axis
+    x_sorted = sorted(bwcd_values.keys())
+    bwcd_y = [bwcd_values[x] for x in x_sorted]
+    bwcd_anomaly_y = [bwcd_anomaly_values[x] for x in x_sorted]
+
+    print(x_sorted)
+    print(bwcd_y)
+    # Plot results
+    plt.figure(figsize=(8, 5))
+    plt.plot(x_sorted, bwcd_y, marker='o', label="BWC_DR")
+    plt.plot(x_sorted, bwcd_anomaly_y, marker='s', label="BWC_DR_anomaly_new", linestyle='--')
+
+    plt.xlabel("Compression ratio")
+    plt.ylabel("Average Synchronized Euclidean Distance (m)")
+    # plt.title("Comparison of BWC_DR and BWC_DR_anomaly_new")
+    legentd = plt.legend()
+    plt.grid(True)
+    out_fn = "res/anomalies.tikz"
+    # tikzplotlib.save(out_fn)
+    plt.show()
+
+
 if __name__ == "__main__":
+    plot_metric_maris()
+    exit()
     datasets = ["taxi"]
     datasets = ["ais", "birds", "flights", "taxi"]
     dataset = "birds"
-    dataset = "ais_anomalies"
+    dataset = "ais_anomalies_24h"
     case = "0.3"
     metric = "SSD"
     metrics = ["SED", "LLR", "SSD"]

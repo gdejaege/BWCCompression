@@ -11,11 +11,15 @@ from src.helpers.utility import PriorityPoint
 class BWC_DR_anomaly_new(Windowed):
     def __init__(self, points, window_length, limit, proj, importance_ratio=2):
         self.importance_ratio = importance_ratio
-        self.anomalies = set()
+        print(self.importance_ratio)
+        self.anomalies = [set(), set(), set()]
+        self.total_anomalies = 0
         super().__init__(points, window_length, limit, proj)
 
     def check_anomaly(self, row):
-        self.anomalies.add(row["id"])
+        if row["is_anomaly"]:
+            self.anomalies[0].add(row["id"])
+            self.total_anomalies += 1
 
     def compress(self):
         """Compress all the points (in different time windows)."""
@@ -31,13 +35,14 @@ class BWC_DR_anomaly_new(Windowed):
             time = row.point.timestamp()
             if time > window_end:
                 self.next_window(window_end)
-                self.anomalies = set()
+                self.anomalies = [set(), self.anomalies[0], self.anomalies[1]]
                 window_end = window_end + self.window
             self.add_point(PriorityPoint(row))
 
         last_time = max([x.timestamp() for x in self.instants.point])
         self.next_window(last_time)
         self.finalize_trips()
+        print("anomalies found", self.total_anomalies)
 
 
     def add_point(self, point):
@@ -119,7 +124,7 @@ class BWC_DR_anomaly_new(Windowed):
         expected_pos = self.get_expected_pos(point) # returns a projected position!
         current = Point(self.proj(point.point.value().x, point.point.value().y))
         distance = expected_pos.distance(current)
-        if point.tid in self.anomalies:
+        if point.tid in self.anomalies[0] or point.tid in self.anomalies[1] or point.tid in self.anomalies[2]:
             distance = distance*self.importance_ratio
         return distance
 

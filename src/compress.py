@@ -26,7 +26,6 @@ import os
 
 import src.bwc.random as BWC_Random
 from bwc.dr_anomaly import BWC_DR_anomaly_new
-from bwc.dr_with_anomalies import BWC_DR_Anomaly
 from bwc.uniform import BWC_uniform
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -64,6 +63,7 @@ def compress_case(dataset, compression_ratio, algorithms):
     """
     cfg = load_config(dataset, compression_ratio)
     windows = cfg["windows"]
+    print(windows)
     limits = cfg["points"]
     # pprint.pprint(cfg)
     points = load_csv_to_df(dataset, cfg["columns"], quality="preprocessed")
@@ -92,11 +92,11 @@ def compress_case(dataset, compression_ratio, algorithms):
 
     # print()
     # print("delays:")
-    all_mn_delays = pd.DataFrame.from_dict(all_mn_delays)
+    # all_mn_delays = pd.DataFrame.from_dict(all_mn_delays)
     # print(all_mn_delays)
-    folder = "res/delays/" + cfg["case"] + "/"
-    Path(folder).mkdir(parents=True, exist_ok=True)
-    all_mn_delays.to_csv(folder+"all.csv", mode="a")
+    # folder = "res/delays/" + cfg["case"] + "/"
+    # Path(folder).mkdir(parents=True, exist_ok=True)
+    # all_mn_delays.to_csv(folder+"all.csv", mode="a")
     print("delays saved")
     # all_res.to_csv("res/bwc_compression/all.csv", mode="a")
 
@@ -123,11 +123,10 @@ def analyse_delays(delays):
     return mean_delays
 
 def compress_anomalies():
-    datasets = ["ais_anomalies"]
-    compression_ratios = [x/1000 for x in range(100, 300, 25)][1:]
+    datasets = ["ais_anomalies_24h"]
+    compression_ratios = [0.1, 0.25, 0.5]
     print(compression_ratios)
-    algorithms = [BWC_DR_Anomaly]
-    algorithms = [BWC_DR.BWC_DR, BWC_DR_anomaly_new]
+    algorithms = [BWC_DR_anomaly_new, BWC_DR.BWC_DR]
     compress(algorithms, datasets, compression_ratios)
 
 if __name__ == "__main__":
@@ -146,5 +145,5 @@ if __name__ == "__main__":
         BWC_STTrace_Delay.BWC_STTrace_Delay,
         BWC_DR.BWC_DR,
     ]
-    compression_ratios = [0.1]
+    compression_ratios = [0.1, 0.25, 0.5]
     compress(algorithms, datasets, compression_ratios)

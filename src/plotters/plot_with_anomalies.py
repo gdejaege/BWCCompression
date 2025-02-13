@@ -30,9 +30,9 @@ def plot_trajectories_to_fig(trajectories, anomalies, output_file="trajectories_
 
 if __name__ == "__main__":
     pymeos_initialize()
-    dataset = "ais_anomalies"
+    dataset = "ais_anomalies_24h"
     window = "00:20:00"
-    compressed_points = load_csv_to_df("ais_anomalies", columns=["id", "point"], quality="compressed", case="test", algorithm="bwc_dr_anomaly", window=window)
+    compressed_points = load_csv_to_df("ais_anomalies_24h", columns=["id", "point"], quality="compressed", case="test", algorithm="bwc_dr_anomaly", window=window)
     compressed_trajectories = convert_points_trips(compressed_points)
 
     with open('res/anomalies.json', 'rb') as f:

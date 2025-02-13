@@ -31,8 +31,8 @@ RAW = "data/raw/"
 PREPROCESSED = "data/preprocessed/"
 DATA = "data/"
 
-def load_csv_to_df(dataset, columns, quality="raw", case="", algorithm="", window="", names_transform=None, process=True):
-    fname = filename(dataset, quality, case, algorithm, window)
+def load_csv_to_df(dataset, columns, quality="raw", case="", algorithm="", window="", names_transform=None, process=True, compression_ratio=None):
+    fname = filename(dataset, quality, case, algorithm, window, compression_ratio)
     # print("loading:", fname)
     instants = pd.read_csv(fname, header=0, usecols=columns)
 
@@ -46,8 +46,10 @@ def load_csv_to_df(dataset, columns, quality="raw", case="", algorithm="", windo
     return instants
 
 
-def filename(dataset, quality="raw", case="", algorithm="", window="") -> str:
+def filename(dataset, quality="raw", case="", algorithm="", window="", compression_ratio=None) -> str:
     folder = DATA + quality + "/" + dataset + "/"
+    if compression_ratio is not None:
+        case = dataset + "_" + str(compression_ratio).replace(".", "_")
     if case:
         folder += case + "/" + algorithm + "/"
         if window:
@@ -115,6 +117,8 @@ def load_config(dataset, compression_ratio):
 
     if "ANOMALY_THRESHOLD" in CONFIG:
         cfg["anomaly_threshold"] = timedelta(**{time_unit: CONFIG.as_int("ANOMALY_THRESHOLD")})
+    if "ANOMALY_FACTOR" in CONFIG:
+        cfg["importance_ratio"] = CONFIG.as_int("ANOMALY_FACTOR")
 
     return cfg
 

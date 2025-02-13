@@ -1,3 +1,6 @@
 ,ais_anomalies_0:00:15,ais_anomalies_0:00:30
 <class 'src.bwc.dr.BWC_DR'>,7.052156932362862,14.611778796514269
 <class 'bwc.dr_anomaly.BWC_DR_anomaly_new'>,6.857873246937689,14.324866807087101
+,ais_anomalies_0:00:15,ais_anomalies_0:00:30
+<class 'src.bwc.dr.BWC_DR'>,7.052156932362862,14.611778796514269
+<class 'bwc.dr_anomaly.BWC_DR_anomaly_new'>,6.857873246937689,14.324866807087101
