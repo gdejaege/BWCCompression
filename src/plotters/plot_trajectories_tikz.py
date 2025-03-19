@@ -4,6 +4,7 @@ import pyproj
 from bokeh.io import output_file
 from matplotlib import pyplot as plt
 from pymeos import pymeos_initialize
+from shapely.affinity import rotate
 from shapely.geometry import Point
 
 from bwc.STTraceImp import BWC_STTrace_Imp
@@ -96,7 +97,7 @@ def generate_tikz(original_polyline, simplifications):
     for i, (name, simplification) in enumerate(simplifications.items()):
         y_shift = -(2.5 * (i + 1))
         tikz_code += f"\n% {name} (Below Original)\n"
-        tikz_code += f"\\begin{{scope}}[yshift={y_shift}cm]\n"
+        # tikz_code += f"\\begin{{scope}}[yshift={y_shift}cm]\n"
 
         # Reposition nodes
         for idx, pt in enumerate(original_polyline):
@@ -104,8 +105,8 @@ def generate_tikz(original_polyline, simplifications):
             tikz_code += f"    \\node (S{i}P{idx + 1}) at ({x:.2f},{y:.2f}) {{}};\n"
 
         # Faint full polyline
-        tikz_code += "    \\draw[faint] " + " -- ".join(
-            [f"(S{i}P{idx + 1})" for idx in range(len(original_polyline))]) + ";\n"
+        # tikz_code += "    \\draw[faint] " + " -- ".join(
+        #     [f"(S{i}P{idx + 1})" for idx in range(len(original_polyline))]) + ";\n"
 
         # Highlight simplification points
         tikz_code += "    % Highlighted points in simplification\n"
@@ -154,7 +155,7 @@ def load_trajectory(dataset, id, projection, case_algorithm_windows, pt_range):
     cfg["trips"] = trips
     cfg["bwc_sttrace_delta"] = timedelta(seconds=30)
     cfg["window_length"] = timedelta(minutes=7)
-    cfg["limit"] = 7
+    cfg["limit"] = 20
 
     for name, case_algorithm_window in case_algorithm_windows.items():
         case, algo_name, window, algo = case_algorithm_window
@@ -187,21 +188,27 @@ def load_trajectory(dataset, id, projection, case_algorithm_windows, pt_range):
 
 
 def plot_trajectories_to_fig(original_polyline, simplifications, output_file="trajectories_plot.png", delta=2):
-    plt.figure(figsize=(16, 14))
+    # For the maris UC4 paper draing, change here
+    plt.figure(figsize=(16, 8))
 
+    angle = 20  # Change this value to rotate more/less
+    origin = (4.35, 50.85)  # Rotation origin (center of rotation)
+
+    original_polyline = [rotate(pt, angle, origin=origin) for pt in original_polyline]
 
     # Plot original polyline
     x_coords, y_coords = zip(*[(pt.x, pt.y) for pt in original_polyline])
+
     plt.plot(x_coords, y_coords, label='Original', color='black', linewidth=2, marker='o')
-    plt.text(10.5, 1, "Original", fontsize=14, verticalalignment='top', horizontalalignment='left')
+    #plt.text(10.5, 1, "Original", fontsize=14, verticalalignment='top', horizontalalignment='left')
 
     # Plot simplifications
     i = 1
     for name, simplification in simplifications.items():
+        simplification = [rotate(pt, angle, origin=origin) for pt in simplification]
         x_simpl, y_simpl = zip(*[(pt.x, pt.y-(i*delta)) for pt in simplification])
         i += 1
-        plt.plot(x_simpl, y_simpl, markersize=12, label=name, linewidth=1.5, linestyle='--', marker='.', color='black')
-        plt.text(10.5, 4 - i*delta, name, fontsize=12, verticalalignment='top', horizontalalignment='left')
+        plt.plot(x_simpl, y_simpl, markersize=12, label=name, linewidth=1.5, linestyle='', marker='.', color='red')
 
     legend = plt.legend()
     legend.remove()
@@ -220,27 +227,27 @@ def plot_trajectories_to_fig(original_polyline, simplifications, output_file="tr
 if __name__ == "__main__":
     # Example Data
     pymeos_initialize()
-    dataset = "ais"
+    dataset = "ais_2"
     id = 219026706
     projection = pyproj.CRS("EPSG:32633")
     pt_range = (5000, 5500)
     case_algorithm_windows = {
-        "BWC-Random": ("ais_0_1", "BWC-Random", "0:15:00", BWC_Random),
-        "BWC-Uniform": ("ais_0_1", "BWC-Uniform", "0:15:00", BWC_uniform),
-        "BWC-Squish": ("ais_0_1", "BWC-Squish", "0:15:00", BWC_SQUISH),
-        "BWC-Squish-Delay": ("ais_0_1", "BWC-Squish-Delay", "0:15:00", BWC_SQUISH_Delay),
-        "BWC-STTrace": ("ais_0_1", "BWC-STTrace", "0:15:00", BWC_STTrace),
-        "BWC-STTrace-Delay": ("ais_0_1", "BWC-STTrace-Delay", "0:15:00", BWC_STTrace_Delay),
-        "BWC-STTrace-Imp": ("ais_0_1", "BWC-STTrace-Imp", "0:15:00", BWC_STTrace_Imp),
-        "BWC-STTrace-Imp-Delay": ("ais_0_1", "BWC-STTrace-Imp-Delay", "0:15:00", BWC_STTrace_Imp_Delay),
+        #"BWC-Random": ("ais_0_1", "BWC-Random", "0:15:00", BWC_Random),
+        #"BWC-Uniform": ("ais_0_1", "BWC-Uniform", "0:15:00", BWC_uniform),
+        #"BWC-Squish": ("ais_0_1", "BWC-Squish", "0:15:00", BWC_SQUISH),
+        #"BWC-Squish-Delay": ("ais_0_1", "BWC-Squish-Delay", "0:15:00", BWC_SQUISH_Delay),
+        #"BWC-STTrace": ("ais_0_1", "BWC-STTrace", "0:15:00", BWC_STTrace),
+        #"BWC-STTrace-Delay": ("ais_0_1", "BWC-STTrace-Delay", "0:15:00", BWC_STTrace_Delay),
+        #"BWC-STTrace-Imp": ("ais_0_1", "BWC-STTrace-Imp", "0:15:00", BWC_STTrace_Imp),
+        #"BWC-STTrace-Imp-Delay": ("ais_0_1", "BWC-STTrace-Imp-Delay", "0:15:00", BWC_STTrace_Imp_Delay),
         "BWC-DR": ("ais_0_1", "BWC-DR", "0:15:00", BWC_DR),
     }
     full, compressed = load_trajectory(dataset, id, projection, case_algorithm_windows, pt_range)
     # print(len(full), len(compressed["BWC-DR"]))
 
     # Generate TikZ code
-    output_file = "/home/gilles/Documents/Mobispace/articles/bwc/src/compression_illustration.png"
-    plot_trajectories_to_fig(full, compressed, output_file, delta=3)
+    output_file = "illustration.png"
+    plot_trajectories_to_fig(full, compressed, output_file, delta=0)
     # tikz_output = generate_tikz(full, compressed)
 
     # Write to file

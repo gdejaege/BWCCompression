@@ -2,6 +2,7 @@ import pickle
 from datetime import timedelta, datetime
 
 import pandas as pd
+from pandas.io.clipboard import init_qt_clipboard
 from pymeos import TGeomPointInst, pymeos_initialize
 import shapely as shp
 from pyproj import Proj
@@ -24,9 +25,12 @@ def raw_ais_anomalies_line_from_compression(start=None, stop=None):
     instants = instants[(instants["Timestamp"] >= start) & (instants["Timestamp"] <= stop)]
     print(len(instants))
 
+    init_points_file = "res/anomalies/uncompreessed.csv"
+    instants.to_csv(init_points_file)
+
     dataset = "ais_anomalies_24h"
     algorithms = ["BWC_DR_anomaly_new", "BWC_DR"]
-    compression_ratios = [0.1, 0.25, 0.5]
+    compression_ratios = [0.5, 0.25, 0.1]
     # compression_ratios = [0.1, 0.25]
     window = "0:00:30"
     print("compressed:")
@@ -36,7 +40,7 @@ def raw_ais_anomalies_line_from_compression(start=None, stop=None):
             if algo == "BWC_DR_anomaly_new":
                 algo = "BWC_DR_anomaly"
             output_name = "res/anomalies/" + str(compression_ratio).replace(".","_") + "_" + algo + "_raw.csv"
-            print(len(points))
+            # print(len(points))
             res = raw_of_points(instants, points)
             res.to_csv(output_name)
             print(output_name, instants["is_anomaly"].sum(), res["is_anomaly"].sum())
@@ -140,9 +144,11 @@ if __name__ == "__main__":
     pymeos_initialize()
     start = datetime(year=2018, month=7, day=3, hour=0, minute=0, second=0, microsecond=0)
     stop = datetime(year=2018, month=7, day=4)
+    # instants = preprocess_ais_anomalies(start, stop)
+
     raw_ais_anomalies_line_from_compression(start, stop)
     exit()
-    instants = preprocess_ais_anomalies(start, stop)
+
     dataset = "ais_anomalies_24h"
     columns = ["id", "point", "is_anomaly", "sog", "cog"]
     instants = load_csv_to_df(dataset, columns, quality="preprocessed")

@@ -96,15 +96,20 @@ def plot_metric_maris(metric="SED"):
     bwcd_y = [bwcd_values[x] for x in x_sorted]
     bwcd_anomaly_y = [bwcd_anomaly_values[x] for x in x_sorted]
 
+    # x_sorted = [i*3 for i in range(2, 11)]
     print(x_sorted)
     print(bwcd_y)
+    print(x_sorted)
     # Plot results
     plt.figure(figsize=(8, 5))
-    plt.plot(x_sorted, bwcd_y, marker='o', label="BWC_DR")
-    plt.plot(x_sorted, bwcd_anomaly_y, marker='s', label="BWC_DR_anomaly_new", linestyle='--')
+    plt.plot(x_sorted, bwcd_y, marker='o', label="BWC-DR")
+    plt.plot(x_sorted, bwcd_anomaly_y, marker='s', label="BWC-DR-A", linestyle='--')
 
-    plt.xlabel("Compression ratio")
-    plt.ylabel("Average Synchronized Euclidean Distance (m)")
+    # plt.xlabel("Bandwidth Constraint (Points per time window)")
+    plt.xlabel("Proportion of points kept after compression")
+    # plt.xlabel("Compression ratio")
+    # plt.xlabel("Compression ratio")
+    plt.ylabel("Average distortion introduced in the compressed trajectories (m)")
     # plt.title("Comparison of BWC_DR and BWC_DR_anomaly_new")
     legentd = plt.legend()
     plt.grid(True)

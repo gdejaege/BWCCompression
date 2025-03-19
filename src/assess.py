@@ -104,8 +104,9 @@ if __name__ == "__main__":
         BWC_DR,
     ]
     algorithms = [BWC_DR_anomaly_new, BWC_DR]
-    compression_ratios = [x/1000 for x in range(100, 300, 25)][1:]
-    compression_ratios = [0.1, 0.25, 0.5]
+    compression_ratios = [0.1, 0.25, 0.45]
+    compression_ratios = [0.5]
+    compression_ratios = [x/100 for x in range(10, 55, 5)]
     metrics = ["SSD", "LLR", "SED"]
     metrics = ["SED"]
     assess_bwc_algorithms(datasets, compression_ratios, algorithms, metrics)

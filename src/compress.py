@@ -124,7 +124,8 @@ def analyse_delays(delays):
 
 def compress_anomalies():
     datasets = ["ais_anomalies_24h"]
-    compression_ratios = [0.1, 0.25, 0.5]
+    compression_ratios = [x/100 for x in range(10, 50, 5)]
+    compression_ratios = [0.5]
     print(compression_ratios)
     algorithms = [BWC_DR_anomaly_new, BWC_DR.BWC_DR]
     compress(algorithms, datasets, compression_ratios)
